@@ -34,21 +34,9 @@ if (!fs.existsSync(publicDir)) {
     fs.mkdirSync(publicDir, { recursive: true });
 }
 
-// Function to update the .env file with the new port
-function updateEnvPort(newPort) {
-    const envPath = path.join(__dirname, '.env');
-    const envContent = fs.readFileSync(envPath, 'utf8');
-    
-    // Update the PORT variable in the .env file
-    const updatedEnvContent = envContent.replace(/PORT=\d+/, `PORT=${newPort}`);
-    
-    fs.writeFileSync(envPath, updatedEnvContent);
-    console.log(`Updated .env file with new PORT: ${newPort}`);
-}
 
-// Define constants and global variables
-let PORT = process.env.REACT_APP_PORT || 3001;
-const BASE_URL = `http://localhost:${PORT}`;
+
+
 let clientInstance;
 let isLoggedIn = false;
 let statusUpdates = [];
@@ -680,10 +668,7 @@ app.post('/api/removecontact', async (req, res) => {
 
 // Start the server
 const startServer = () => {
-    server.listen(PORT, () => {
-        console.log(`Server running at http://localhost:${PORT}`);
-        updateEnvPort(PORT); // Update the .env file with the current port
-    });
+   
 };
 
 // Ensure that the server is started
