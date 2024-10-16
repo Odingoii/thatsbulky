@@ -23,7 +23,8 @@
   },
   "scripts": {
     "start": "node server.js",
-    "build": "echo 'No build step required'"  
+    "build": "npm install'"  ,
+    "postinstall": "npm install"
   },
   "engines": {
     "node": ">=22.x"
