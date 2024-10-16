@@ -1,0 +1,56 @@
+.app-frame {
+  display: flex; /* Use flex to manage the layout */
+  height: 100vh; /* Full height of the viewport */
+}
+
+.content-wrapper {
+  display: flex; /* Allow sidebar and content to be side by side */
+  flex: 1; /* Allow the content area to take up the remaining space */
+  margin-left: 250px; /* Adjust this to the sidebar width */
+  padding: 3vh; /* Ensure spacing from top and bottom */
+  background-color: #f8f9fa; /* Light background color for the main content */
+  transition: margin 0.3s ease; /* Smooth transition for margin changes */
+}
+
+.blurred {
+  filter: blur(2px); /* Blur effect when loading or QR scanner is active */
+}
+
+.main-content {
+  flex: 1; /* Allow the main content to expand */
+  padding: 20px; /* Padding around the main content */
+  overflow-y: auto; /* Allow vertical scrolling if needed */
+  min-height: 100vh; /* Ensure it takes full height */
+}
+
+/* Optional: Media query for responsiveness */
+@media (max-width: 768px) {
+  .content-wrapper {
+      margin-left: 0; /* Remove margin on smaller screens */
+  }
+}
+
+/* Loading state */
+.main-content.loading {
+  opacity: 0.5; /* Dimmed when loading */
+  pointer-events: none; /* Disable interactions */
+}
+
+/* Loading spinner */
+.loading-spinner {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  width: 80%;
+  max-width: 600px;
+  margin: 0 auto; /* Center spinner */
+}
+
+/* Adjust loading spinner for smaller screens */
+@media (max-width: 768px) {
+  .loading-spinner {
+      width: 100%; /* Full width on smaller screens */
+      max-width: none; /* No max-width for small devices */
+  }
+}

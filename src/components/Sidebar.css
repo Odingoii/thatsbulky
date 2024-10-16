@@ -1,0 +1,36 @@
+.sidebar {
+    background-color: #2C3E50; /* Darker navy for sidebar */
+    color: #ECF0F1; /* Light text color */
+    padding: 20px;
+    box-shadow: 2px 0 15px rgba(0, 0, 0, 0.5); /* Enhanced shadow */
+    display: flex;
+    flex-direction: column;
+    min-width: 250px; /* Fixed width */
+    height: 100vh; /* Full height */
+    position: fixed; /* Make it immovable */
+    left: 0; /* Align to left */
+    top: 0; /* Align to top */
+    z-index: 1000; /* Ensure it stays above other content */
+}
+/* Sidebar button styling */
+.sidebar-button {
+    background-color: #3498DB; /* Blue color */
+    color: white;
+    border: none;
+    border-radius: 8px; /* More rounded corners */
+    padding: 12px;
+    margin: 10px 0;
+    cursor: pointer;
+    transition: background 0.3s, transform 0.2s, box-shadow 0.2s; /* Added shadow transition */
+    font-size: 1em;
+}
+
+.sidebar-button:hover {
+    background-color: #2980B9; /* Darker blue on hover */
+    transform: scale(1.05);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); /* Shadow on hover */
+}
+
+.sidebar-button:active {
+    transform: scale(0.95);
+}
