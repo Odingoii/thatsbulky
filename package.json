@@ -22,9 +22,9 @@
     "whatsapp-web.js": "^1.26.0"
   },
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js"  // Only start the server
   },
   "engines": {
-    "node": ">=22.x"
+    "node": ">=14.x"
   }
 }
