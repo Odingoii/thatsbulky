@@ -4,7 +4,7 @@
   "private": true,
   "description": "WhatsApp bulk messaging app",
   "author": "Aren't ready to die yet",
-  "main": "server.js",   // Changed from "main.js" to "server.js" since server.js is the backend entry point
+  "main": "server.js",  
   "dependencies": {
     "axios": "^1.7.7",
     "compression": "^1.7.4",
