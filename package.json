@@ -26,6 +26,6 @@
     "build": "echo 'No build step required'"  
   },
   "engines": {
-    "node": ">=14.x"
+    "node": ">=22.x"
   }
 }
