@@ -126,34 +126,30 @@ ipcMain.handle('api:sendMessageToGroup', async (event, { contactIds, message }) 
 });
 
 
-ipcMain.handle('api:fetchQrCode', async () => {
+
+let qrCodeBuffer = null; // Store the QR code image buffer in memory
+
+ipcMain.handle('fetchQrCode', async () => {
     try {
-        const response = await axios.get(`${BASE_URL}/api/qr-code`);
-        console.log('API response:', response.data); // Log the entire response
+        // Make the GET request to fetch the QR code image in binary format
+        const response = await axios.get(`${BASE_URL}/api/qr-code`, {
+            responseType: 'arraybuffer' // This ensures the response is treated as binary data
+        });
 
-        // Adjust the property based on actual response structure
-        const base64Data = response.data.qrCode; // Change this line as necessary
-
-        if (!base64Data) {
-            throw new Error('Base64 data is undefined');
+        if (!response.data) {
+            throw new Error('No image data received');
         }
-
-        // Remove the data URL prefix if present (e.g., "data:image/png;base64,")
-        const base64String = base64Data.replace(/^data:image\/\w+;base64,/, '');
 
         // Define the file path to save the image
         const imagePath = path.join(__dirname, 'qrcode.png');
 
-        // Convert base64 string to a buffer
-        const imageBuffer = Buffer.from(base64String, 'base64');
-
-        // Write the buffer to a file
-        fs.writeFileSync(imagePath, imageBuffer);
+        // Write the binary data (buffer) directly to a file
+        fs.writeFileSync(imagePath, response.data);
 
         // Return the image path to the renderer process
         return { imagePath };
     } catch (error) {
-        console.error('Error fetching QR Code or converting to image:', error);
+        console.error('Error fetching QR Code or saving image:', error);
         return { error: 'Failed to fetch QR Code or save image' };
     }
 });

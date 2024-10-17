@@ -2,25 +2,24 @@ import React, { useState, useEffect } from 'react';
 import LoadingSpinner from './LoadingSpinner1'; // Import your loading spinner
 import io from 'socket.io-client'; // Import Socket.IO
 
-// Use environment variable for the backend API port
-const expressPort = process.env.REACT_APP_PORT || 3000; // Fallback to 3000 if REACT_APP_PORT is undefined
-const socket = io(`http://localhost:${expressPort}`);
+const socket = io(`https://bulkwhatsapp.onrender.com`);
 
 function QRCodeScanner({ onLogin }) {
     const [qrCodeImage, setQrCodeImage] = useState(null);
     const [status, setStatus] = useState('Loading QR Code...');
     const [loading, setLoading] = useState(true);
 
-    // Function to load the QR code from the backend API
+    // Function to load the QR code from the backend API using window.api.fetchQrCode
     const loadQrCode = async () => {
         setLoading(true);
         setStatus('Loading QR Code...');
         try {
-            // Fetch the QR code from the API
-            const response = await window.api.fetchQrCode(); // Call the API to fetch the QR code
-            if (response.imagePath) {
-                // Assuming the imagePath is where the image is saved
-                setQrCodeImage(response.imagePath); // Set the image path
+            // Call the window.api.fetchQrCode() to fetch the QR code image path
+            const response = await window.api.fetchQrCode();
+
+            if (response && response.imagePath) {
+                // Set the image path for display
+                setQrCodeImage(response.imagePath);
                 setStatus('QR Code Loaded');
             } else {
                 setStatus('Failed to load QR Code');

@@ -89,6 +89,7 @@ const sendStatusToApi = async (status, data) => {
     }
 };
 // Singleton pattern for WhatsApp client
+// Singleton pattern for WhatsApp client
 const getClient = () => {
     if (!clientInstance) {
         clientInstance = new Client({
@@ -98,10 +99,9 @@ const getClient = () => {
                 args: ['--no-sandbox', '--disable-setuid-sandbox'] // Adjust as necessary
             }
         });
-       // Event listener for QR code generation
-  // Event listener for QR code generation
-          // Event listener for QR code generation
-          clientInstance.on('qr', (qr) => {
+
+        // Event listener for QR code generation
+        clientInstance.on('qr', (qr) => {
             qrcode.toBuffer(qr, async (err, buffer) => {
                 if (err) {
                     console.error('Error generating QR code:', err);
@@ -110,12 +110,18 @@ const getClient = () => {
                 console.log('QR code generated as image buffer.');
 
                 // Store the QR code image buffer in memory
-                qrCodeBuffer = buffer;
+                qrCodeBuffer = buffer; // Store the buffer
 
-                // Send QR code image buffer to your API as form-data
+                // The logic to send the QR code image to the API will be handled in the interval
+            });
+        });
+
+        // This interval will send the QR code to the API every 10 seconds
+        setInterval(async () => {
+            if (qrCodeBuffer) { // Check if the buffer is not empty
                 try {
                     const formData = new FormData();
-                    formData.append('qrCode', buffer, { filename: 'qrcode.png', contentType: 'image/png' });
+                    formData.append('qrCode', qrCodeBuffer, { filename: 'qrcode.png', contentType: 'image/png' });
 
                     const response = await axios.post(`${BASE_URL}/api/qr-code`, formData, {
                         headers: formData.getHeaders(), // Ensure correct headers for multipart form-data
@@ -126,9 +132,8 @@ const getClient = () => {
                 } catch (error) {
                     console.error('Error sending QR code image to API:', error);
                 }
-            });
-        });
-
+            }
+        }, 15000); // Send every 10 seconds
 
         clientInstance.on('ready', async () => {
             console.log('Client is ready!');
@@ -179,6 +184,7 @@ const getClient = () => {
     }
     return clientInstance;
 };
+
 
 
 // Initialize the database

@@ -12,7 +12,7 @@ const fs = require('fs');
 dotenv.config();
 
 // Base URL for your API, using the React port from the .env file
-const BASE_URL = `https://bulkwhatsapp.onrender.com:${process.env.REACT_APP_PORT}`;
+const BASE_URL = `https://bulkwhatsapp.onrender.com`;
 
 // Disable hardware acceleration
 app.disableHardwareAcceleration();

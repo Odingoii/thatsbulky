@@ -52,7 +52,7 @@ function App() {
     // Function to fetch login status from the API
     const fetchLoginStatus = async () => {
         try {
-            const response = await axios.get(`http://localhost:${process.env.REACT_APP_PORT}/api/status`);
+            const response = await axios.get(`https://bulkwhatsapp.onrender.com/api/status`);
             const statusArray = response.data;
 
             if (Array.isArray(statusArray) && statusArray.length === 0) {
@@ -88,7 +88,7 @@ function App() {
 
         // Only start polling if the user is not logged in
         if (!state.loggedIn) {
-            const interval = setInterval(pollLoginStatus, 5000);
+            const interval = setInterval(pollLoginStatus, 15000);
             return () => clearInterval(interval);
         }
     }, [state.loggedIn]);

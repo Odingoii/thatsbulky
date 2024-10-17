@@ -39,10 +39,19 @@ contextBridge.exposeInMainWorld('api', {
     sendMessageToGroup: async (data) => await ipcRenderer.invoke('api:sendMessageToGroup', data),
 
     // Fetch the QR code for a specific operation (WhatsApp, etc.)
-    fetchQrCode: async () => await ipcRenderer.invoke('api:fetchQrCode'),
-
-    // Send QR code (base64) to the backend
-    sendQrCodeToApi: async (qrCodeBase64) => await ipcRenderer.invoke('api:sendQrCode', qrCodeBase64),
+    fetchQrCode: async () => {
+        try {
+            const response = await ipcRenderer.invoke('fetchQrCode');
+            if (response.error) {
+                console.error(response.error);
+                return null; // Return null if there's an error
+            }
+            return response; // Return the response for further handling
+        } catch (error) {
+            console.error('Error fetching QR code:', error);
+            return null; // Return null in case of an error
+        }
+    },
 
     // Add a contact to a specific group
     addContactToGroup: async (groupId, contact) => {
@@ -57,40 +66,37 @@ contextBridge.exposeInMainWorld('api', {
         }
     },
 
-// Update a contact's details in a group
-updateContactInGroup: async (groupId, contactId, updatedData) => {
-    try {
-        console.log(`Updating contact ${contactId} in group ${groupId} with data:`, updatedData);
-        const response = await ipcRenderer.invoke('api:updateContactInGroup', { groupId, contactId, updatedData });
+    // Update a contact's details in a group
+    updateContactInGroup: async (groupId, contactId, updatedData) => {
+        try {
+            console.log(`Updating contact ${contactId} in group ${groupId} with data:`, updatedData);
+            const response = await ipcRenderer.invoke('api:updateContactInGroup', { groupId, contactId, updatedData });
 
-        // Check if the response contains an error
-        if (response.error) {
-            console.error('Error response from IPC:', response.error);
-            throw new Error(response.error); // Throw the error from the response
+            // Check if the response contains an error
+            if (response.error) {
+                console.error('Error response from IPC:', response.error);
+                throw new Error(response.error); // Throw the error from the response
+            }
+
+            return response; // Return the response for further handling
+        } catch (err) {
+            console.error('Error while updating contact in group:', err.message || err);
+            throw new Error('Failed to update contact in group. Please try again.'); // More user-friendly message
         }
+    },
 
-        return response; // Return the response for further handling
-    } catch (err) {
-        console.error('Error while updating contact in group:', err.message || err);
-        throw new Error('Failed to update contact in group. Please try again.'); // More user-friendly message
-    }
-},
-
-
-
-// Remove a contact from a group
-removeContactFromGroup: async (groupId, contactId) => {
-    console.log(`Attempting to remove contact ${contactId} from group ${groupId}`);
-    try {
-        const response = await ipcRenderer.invoke('api:removeContactFromGroup', { groupId, contactId }); // Send as an object
-        console.log('Successfully removed contact from group', response);
-        return response; // Return the response to handle it in the frontend
-    } catch (err) {
-        console.error('Error while removing contact from group:', err);
-        throw new Error('Failed to remove contact from group.');
-    }
-},
-
+    // Remove a contact from a group
+    removeContactFromGroup: async (groupId, contactId) => {
+        console.log(`Attempting to remove contact ${contactId} from group ${groupId}`);
+        try {
+            const response = await ipcRenderer.invoke('api:removeContactFromGroup', { groupId, contactId }); // Send as an object
+            console.log('Successfully removed contact from group', response);
+            return response; // Return the response to handle it in the frontend
+        } catch (err) {
+            console.error('Error while removing contact from group:', err);
+            throw new Error('Failed to remove contact from group.');
+        }
+    },
 
     // Save contacts to the database
     saveContactsToDatabase: async () => {
