@@ -1,6 +1,6 @@
 const fs = require('fs');
-const FormData = require('form-data');
 const path = require('path');
+const FormData = require('form-data');
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode');
 const sqlite3 = require('sqlite3').verbose();
@@ -11,6 +11,8 @@ const http = require('http');
 const { Server } = require('socket.io');
 const axios = require('axios');
 dotenv.config(); // Load environment variables
+const multer = require('multer');
+const upload = multer();
 
 const app = express();
 const server = http.createServer(app);
@@ -26,17 +28,32 @@ const io = new Server(server, {
 app.use(express.json());
 app.use(cors({ origin: 'http://localhost:3000', credentials: true }));
 
+
+
 // Define constants and global variables
-let PORT = 3001;
+let PORT =  10000;
 const BASE_URL = `https://bulkwhatsapp.onrender.com`;
 let clientInstance;
 let isLoggedIn = false;
 let statusUpdates = [];
 let qrCodeBuffer = null;  // QR Code image buffer in memory
 
-const multer = require('multer');
-const upload = multer();
 
+
+// Serve the QR code image
+app.get('/api/qr-code/:filename', (req, res) => {
+    const filename = req.params.filename;
+    const filePath = path.join(__dirname, 'uploads', filename); // Build the path to the image
+
+    res.sendFile(filePath, (err) => {
+        if (err) {
+            console.error('Error sending file:', err);
+            res.status(err.status).end();
+        } else {
+            console.log('Sent:', filename);
+        }
+    });
+});
 // Serve the QR code image
 app.get('/api/qr-code', (req, res) => {
     if (!qrCodeBuffer) {
@@ -46,8 +63,8 @@ app.get('/api/qr-code', (req, res) => {
     res.set('Content-Type', 'image/png');
     res.send(qrCodeBuffer); // Send the QR code buffer as a response
 });
-
 // Function to send status to API
+
 const sendStatusToApi = async (status, data) => {
     try {
         const response = await axios.post(`${BASE_URL}/api/status`, {
@@ -59,7 +76,6 @@ const sendStatusToApi = async (status, data) => {
         console.error('Error sending status to API:', error);
     }
 };
-
 // Singleton pattern for WhatsApp client
 const getClient = () => {
     if (!clientInstance) {
@@ -70,8 +86,6 @@ const getClient = () => {
                 args: ['--no-sandbox', '--disable-setuid-sandbox'] // Adjust as necessary
             }
         });
-
-        // Event listener for QR code generation
         clientInstance.on('qr', (qr) => {
             qrcode.toBuffer(qr, async (err, buffer) => {
                 if (err) {
@@ -118,8 +132,10 @@ const getClient = () => {
                 await initializeDatabase();
                 await saveContactsToDatabase();
 
-                // Optionally, remove QR code from memory on successful login
-                qrCodeBuffer = null;
+                // Delete the QR code image after successful login
+                if (fs.existsSync(qrCodeImagePath)) {
+                    fs.unlinkSync(qrCodeImagePath);
+                }
             } catch (err) {
                 console.error('Error during initialization:', err);
             }
@@ -156,6 +172,8 @@ const getClient = () => {
     return clientInstance;
 };
 
+
+// Initialize the database
 async function initializeDatabase() {
     const db = new sqlite3.Database(process.env.DB_PATH || 'contacts.db', (err) => {
         if (err) {
@@ -172,12 +190,7 @@ async function initializeDatabase() {
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL
             )`, (err) => {
-                if (err) {
-                    console.error('Error creating groups table:', err);
-                    return reject(err);
-                } else {
-                    console.log('Groups table created successfully');
-                }
+                if (err) return reject(err);
             });
 
             // Create the contacts table
@@ -187,13 +200,9 @@ async function initializeDatabase() {
                 phone TEXT NOT NULL UNIQUE,
                 custom_name TEXT NOT NULL
             )`, (err) => {
-                if (err) {
-                    console.error('Error creating contacts table:', err);
-                    return reject(err);
-                } else {
-                    console.log('Contacts table created successfully');
-                }
+                if (err) return reject(err);
             });
+
 
             // Create the group_contacts table
             db.run(`CREATE TABLE IF NOT EXISTS group_contacts (
@@ -203,18 +212,12 @@ async function initializeDatabase() {
                 FOREIGN KEY(contact_id) REFERENCES contacts(id),
                 UNIQUE(group_id, contact_id)
             )`, (err) => {
-                if (err) {
-                    console.error('Error creating group_contacts table:', err);
-                    return reject(err);
-                } else {
-                    console.log('Group_contacts table created successfully');
-                    resolve();  // Resolve the promise after the last table is created
-                }
+                if (err) return reject(err);
+                resolve();
             });
         });
     });
 }
-
 
 async function saveContactsToDatabase() {
     const contacts = await clientInstance.getContacts();
@@ -427,6 +430,7 @@ app.post('/api/addtogroup', async (req, res) => {
     }
 });
 // POST route to receive the QR code from the client
+// POST route to receive the QR code from the client
 app.post('/api/qr-code', (req, res) => {
     const { qrCode } = req.body;
 
@@ -442,19 +446,13 @@ app.post('/api/qr-code', (req, res) => {
 });
 
 // GET route to serve the latest QR code
-// Serve the QR code image
-app.get('/api/qr-code/:filename', (req, res) => {
-    const filename = req.params.filename;
-    const filePath = path.join(__dirname, 'uploads', filename); // Build the path to the image
+app.get('/api/qr-code', (req, res) => {
+    if (!latestQrCode) {
+        return res.status(404).json({ message: 'No QR code available.' });
+    }
 
-    res.sendFile(filePath, (err) => {
-        if (err) {
-            console.error('Error sending file:', err);
-            res.status(err.status).end();
-        } else {
-            console.log('Sent:', filename);
-        }
-    });
+    // Respond with the latest QR code in base64 format
+    res.json({ qrCode: latestQrCode });
 });
 
 // Function to fetch contacts from the database
@@ -692,15 +690,10 @@ app.post('/api/removecontact', async (req, res) => {
 });
 
 
-// Start the serverß
+// Start the server
 const startServer = () => {
-    server.listen(PORT, () => {
-        console.log(`https://bulkwhatsapp.onrender.com/${PORT}`);
-
-    });
 };
 
 // Ensure that the server is started
 startServer();
-initializeDatabase();
 getClient(); // Initialize WhatsApp client
