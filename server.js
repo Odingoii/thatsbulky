@@ -1,4 +1,5 @@
 const fs = require('fs');
+const FormData = require('form-data');
 const path = require('path');
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode');
@@ -43,16 +44,36 @@ let isLoggedIn = false;
 let statusUpdates = [];
 
 
-app.post('/api/status', (req, res) => {
-    const { status, data } = req.body;
+const multer = require('multer');
+const upload = multer();
 
-    console.log('Received status update:', status, data);
+// Serve the QR code image (stored in memory)
+let qrCodeBuffer = null;
 
-    // Store the status updates in the array
-    statusUpdates.push({ status, data, timestamp: new Date() });
+// Endpoint to receive the QR code image
+app.post('/api/qr-code', upload.single('qrCode'), (req, res) => {
+    const file = req.file;
 
-    res.status(200).json({ message: 'Status received', status, data });
+    if (!file) {
+        return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    console.log('Received QR code image:', file);
+    qrCodeBuffer = file.buffer; // Store the QR code buffer in memory
+
+    res.status(200).json({ message: 'QR code image received successfully' });
 });
+
+// Serve the QR code image
+app.get('/api/qr-code', (req, res) => {
+    if (!qrCodeBuffer) {
+        return res.status(404).json({ message: 'No QR code image found' });
+    }
+
+    res.set('Content-Type', 'image/png');
+    res.send(qrCodeBuffer); // Send the QR code buffer as a response
+});
+
 
 // Function to send status to API
 
@@ -77,27 +98,37 @@ const getClient = () => {
                 args: ['--no-sandbox', '--disable-setuid-sandbox'] // Adjust as necessary
             }
         });
-        clientInstance.on('qr', (qr) => {
-            qrcode.toDataURL(qr, async (err, qrCodeBase64) => {
+       // Event listener for QR code generation
+  // Event listener for QR code generation
+          // Event listener for QR code generation
+          clientInstance.on('qr', (qr) => {
+            qrcode.toBuffer(qr, async (err, buffer) => {
                 if (err) {
                     console.error('Error generating QR code:', err);
                     return;
                 }
-                console.log('QR code generated as base64 string.');
-        
-                // Send QR code as base64 to your API
+                console.log('QR code generated as image buffer.');
+
+                // Store the QR code image buffer in memory
+                qrCodeBuffer = buffer;
+
+                // Send QR code image buffer to your API as form-data
                 try {
-                    const response = await axios.post(`${BASE_URL}/api/qr-code`, {
-                        qrCode: qrCodeBase64
+                    const formData = new FormData();
+                    formData.append('qrCode', buffer, { filename: 'qrcode.png', contentType: 'image/png' });
+
+                    const response = await axios.post(`${BASE_URL}/api/qr-code`, formData, {
+                        headers: formData.getHeaders(), // Ensure correct headers for multipart form-data
                     });
-        
-                    console.log('QR code sent to API successfully:', response.data);
-                    sendStatusToApi('qr-code-updated', 'qr-code.png'); // Notify API
+
+                    console.log('QR code image sent to API successfully:', response.data);
+                    sendStatusToApi('qr-code-updated', 'qrcode.png'); // Notify API of update
                 } catch (error) {
-                    console.error('Error sending QR code to API:', error);
+                    console.error('Error sending QR code image to API:', error);
                 }
             });
         });
+
 
         clientInstance.on('ready', async () => {
             console.log('Client is ready!');
@@ -422,13 +453,19 @@ app.post('/api/qr-code', (req, res) => {
 });
 
 // GET route to serve the latest QR code
-app.get('/api/qr-code', (req, res) => {
-    if (!latestQrCode) {
-        return res.status(404).json({ message: 'No QR code available.' });
-    }
+// Serve the QR code image
+app.get('/api/qr-code/:filename', (req, res) => {
+    const filename = req.params.filename;
+    const filePath = path.join(__dirname, 'uploads', filename); // Build the path to the image
 
-    // Respond with the latest QR code in base64 format
-    res.json({ qrCode: latestQrCode });
+    res.sendFile(filePath, (err) => {
+        if (err) {
+            console.error('Error sending file:', err);
+            res.status(err.status).end();
+        } else {
+            console.log('Sent:', filename);
+        }
+    });
 });
 
 // Function to fetch contacts from the database
