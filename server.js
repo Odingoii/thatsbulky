@@ -71,7 +71,7 @@ app.get('/api/qr-code', (req, res) => {
 
 const sendStatusToApi = async (status, data) => {
     try {
-        const response = await axios.post(`/api/status`, {
+        const response = await axios.post(`${BASE_URL}/api/status`, {
             status: status,
             data: data
         });
