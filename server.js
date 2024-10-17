@@ -26,12 +26,6 @@ const io = new Server(server, {
 // Middleware setup
 app.use(express.json());
 app.use(cors({ origin: 'http://localhost:3000', credentials: true }));
-app.use(express.static(path.join(__dirname, 'build'))); // Serve React app
-// Setup paths and public directory
-
-if (!fs.existsSync(publicDir)) {
-    fs.mkdirSync(publicDir, { recursive: true });
-}
 
 
 // Define constants and global variables
