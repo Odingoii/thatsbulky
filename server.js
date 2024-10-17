@@ -28,8 +28,6 @@ app.use(express.json());
 app.use(cors({ origin: 'http://localhost:3000', credentials: true }));
 app.use(express.static(path.join(__dirname, 'build'))); // Serve React app
 // Setup paths and public directory
-const publicDir = path.join(__dirname, 'build');
-const qrCodeImagePath = path.join(publicDir, 'qr-code.png');
 
 if (!fs.existsSync(publicDir)) {
     fs.mkdirSync(publicDir, { recursive: true });
@@ -186,8 +184,6 @@ const getClient = () => {
 };
 
 
-
-// Initialize the database
 async function initializeDatabase() {
     const db = new sqlite3.Database(process.env.DB_PATH || 'contacts.db', (err) => {
         if (err) {
@@ -204,7 +200,12 @@ async function initializeDatabase() {
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL
             )`, (err) => {
-                if (err) return reject(err);
+                if (err) {
+                    console.error('Error creating groups table:', err);
+                    return reject(err);
+                } else {
+                    console.log('Groups table created successfully');
+                }
             });
 
             // Create the contacts table
@@ -214,9 +215,13 @@ async function initializeDatabase() {
                 phone TEXT NOT NULL UNIQUE,
                 custom_name TEXT NOT NULL
             )`, (err) => {
-                if (err) return reject(err);
+                if (err) {
+                    console.error('Error creating contacts table:', err);
+                    return reject(err);
+                } else {
+                    console.log('Contacts table created successfully');
+                }
             });
-
 
             // Create the group_contacts table
             db.run(`CREATE TABLE IF NOT EXISTS group_contacts (
@@ -226,12 +231,18 @@ async function initializeDatabase() {
                 FOREIGN KEY(contact_id) REFERENCES contacts(id),
                 UNIQUE(group_id, contact_id)
             )`, (err) => {
-                if (err) return reject(err);
-                resolve();
+                if (err) {
+                    console.error('Error creating group_contacts table:', err);
+                    return reject(err);
+                } else {
+                    console.log('Group_contacts table created successfully');
+                    resolve();  // Resolve the promise after the last table is created
+                }
             });
         });
     });
 }
+
 
 async function saveContactsToDatabase() {
     const contacts = await clientInstance.getContacts();
