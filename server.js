@@ -47,7 +47,7 @@ function updateEnvPort(newPort) {
 }
 
 // Define constants and global variables
-let PORT = process.env.REACT_APP_PORT || 3001;
+let PORT = 3001;
 const BASE_URL = `https://bulkwhatsapp.onrender.com:${PORT}`;
 let clientInstance;
 let isLoggedIn = false;
@@ -682,7 +682,7 @@ app.post('/api/removecontact', async (req, res) => {
 const startServer = () => {
     server.listen(PORT, () => {
         console.log(`https://bulkwhatsapp.onrender.com${PORT}`);
-        updateEnvPort(PORT); // Update the .env file with the current port
+
     });
 };
 
