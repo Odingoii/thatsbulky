@@ -37,8 +37,7 @@ if (!fs.existsSync(publicDir)) {
 
 
 // Define constants and global variables
-let PORT = 3001;
-const BASE_URL = `https://bulkwhatsapp.onrender.com/${PORT}`;
+const BASE_URL = `https://bulkwhatsapp.onrender.com`;
 let clientInstance;
 let isLoggedIn = false;
 let statusUpdates = [];
@@ -705,10 +704,6 @@ app.post('/api/removecontact', async (req, res) => {
 
 // Start the serverß
 const startServer = () => {
-    server.listen(PORT, () => {
-        console.log(`https://bulkwhatsapp.onrender.com/${PORT}`);
-
-    });
 };
 
 // Ensure that the server is started
