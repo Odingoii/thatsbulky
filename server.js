@@ -11,7 +11,12 @@ const http = require('http');
 const { Server } = require('socket.io');
 const axios = require('axios');
 dotenv.config(); // Load environment variables
+const multer = require('multer');
+const upload = multer();
 
+// Define constants and global variables
+let PORT = 3001;
+const BASE_URL = `https://bulkwhatsapp.onrender.com:${PORT}`;
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -20,7 +25,15 @@ const io = new Server(server, {
         methods: ['GET', 'POST'],
         credentials: true,
     },
-});
+}); 
+
+app.use(express.json());
+let statusUpdates = [];
+let clientInstance = null;
+let qrCodeBuffer = null;
+let isLoggedIn = false;
+// Serve the QR code image (stored in memory)
+
 
 // Middleware setup
 app.use(express.json());
@@ -29,18 +42,7 @@ app.use(express.static(path.join(__dirname, 'build'))); // Serve React app
 // Setup paths and public directory
 
 
-// Define constants and global variables
-let PORT = 3001;
-const BASE_URL = `https://bulkwhatsapp.onrender.com:${PORT}`;
-let clientInstance;
-let isLoggedIn = false;
-let statusUpdates = [];
 
-const multer = require('multer');
-const upload = multer();
-
-// Serve the QR code image (stored in memory)
-let qrCodeBuffer = null;
 
 // Endpoint to receive the QR code image
 app.post('/api/qr-code', upload.single('qrCode'), (req, res) => {
@@ -67,20 +69,18 @@ app.get('/api/qr-code', (req, res) => {
 });
 
 
-// Function to send status to API
 
 const sendStatusToApi = async (status, data) => {
     try {
-        const baseURL =  'https://bulkwhatsapp.onrender.com';  // Ensure BASE_URL is properly set
-        const response = await axios.post(`${baseURL}/api/status`, {
-            status: status,
-            data: data
-        });
+        if (!status) throw new Error('Status is required to send to API');
+        
+        const response = await axios.post(`${BASE_URL}/api/status`, { status, data });
         console.log('Status sent to API:', response.data);
     } catch (error) {
-        console.error('Error sending status to API:', error);
+        console.error(`Error sending status to API: ${error.message}`);
     }
 };
+
 app.post('/api/status', (req, res) => {
     const { status, data } = req.body;
 
@@ -92,11 +92,10 @@ app.post('/api/status', (req, res) => {
     statusUpdates.push(statusUpdate);
 
     console.log('Status received:', statusUpdate);
-
     res.status(200).json({ message: 'Status received successfully', statusUpdate });
 });
+
 app.get('/api/status', (req, res) => {
-    // Return the stored status updates
     res.status(200).json(statusUpdates);
 });
 
@@ -106,23 +105,20 @@ const getClient = () => {
         clientInstance = new Client({
             authStrategy: new LocalAuth(),
             puppeteer: {
-                headless: true,  // Set to false if you want to see the browser
-                args: ['--no-sandbox', '--disable-setuid-sandbox'] // Adjust as necessary
+                headless: true,
+                args: ['--no-sandbox', '--disable-setuid-sandbox']
             }
         });
-       // Event listener for QR code generation
-  // Event listener for QR code generation
-          // Event listener for QR code generation
-          clientInstance.on('qr', (qr) => {
+
+        // QR code generation event
+        clientInstance.on('qr', (qr) => {
             qrcode.toBuffer(qr, async (err, buffer) => {
                 if (err) {
                     console.error('Error generating QR code:', err);
                     return;
                 }
-                console.log('QR code generated as image buffer.');
-
-                // Store the QR code image buffer in memory
                 qrCodeBuffer = buffer;
+                console.log('QR code generated as image buffer.');
 
                 // Send QR code image buffer to your API as form-data
                 try {
@@ -130,23 +126,22 @@ const getClient = () => {
                     formData.append('qrCode', buffer, { filename: 'qrcode.png', contentType: 'image/png' });
 
                     const response = await axios.post(`${BASE_URL}/api/qr-code`, formData, {
-                        headers: formData.getHeaders(), // Ensure correct headers for multipart form-data
+                        headers: formData.getHeaders(),
                     });
-
                     console.log('QR code image sent to API successfully:', response.data);
-                    sendStatusToApi('qr-code-updated', 'qrcode.png'); // Notify API of update
+                    await sendStatusToApi('qr-code-updated', 'qrcode.png'); // Notify API of update
                 } catch (error) {
-                    console.error('Error sending QR code image to API:', error);
+                    console.error(`Error sending QR code image to API: ${error.message}`);
                 }
             });
         });
 
-
+        // Client ready event
         clientInstance.on('ready', async () => {
             console.log('Client is ready!');
             isLoggedIn = true;
-            sendStatusToApi('client-ready', null);
-            sendStatusToApi('login-status', { loggedIn: isLoggedIn });
+            await sendStatusToApi('client-ready', null);
+            await sendStatusToApi('login-status', { loggedIn: isLoggedIn });
 
             try {
                 await initializeDatabase();
@@ -162,31 +157,32 @@ const getClient = () => {
         });
 
         // Authentication and logout handling
-        clientInstance.on('authenticated', () => {
+        clientInstance.on('authenticated', async () => {
             console.log('User is logged in!');
             isLoggedIn = true;
-            sendStatusToApi('loggedIn', null);
-            sendStatusToApi('login-status', { loggedIn: isLoggedIn });
+            await sendStatusToApi('loggedIn', null);
+            await sendStatusToApi('login-status', { loggedIn: isLoggedIn });
         });
 
-        clientInstance.on('auth_failure', () => {
+        clientInstance.on('auth_failure', async () => {
             console.log('User is not logged in. Please scan the QR code again.');
             isLoggedIn = false;
-            sendStatusToApi('NotloggedIn', null);
-            sendStatusToApi('login-status', { loggedIn: isLoggedIn });
+            await sendStatusToApi('auth-failure', 'QR code required');
+            await sendStatusToApi('login-status', { loggedIn: isLoggedIn });
         });
 
-        clientInstance.on('disconnected', (reason) => {
+        clientInstance.on('disconnected', async (reason) => {
             console.log('Client has been logged out:', reason);
             isLoggedIn = false;
-            sendStatusToApi('login-status', { loggedIn: isLoggedIn });
+            await sendStatusToApi('client-disconnected', reason);
+            await sendStatusToApi('login-status', { loggedIn: isLoggedIn });
         });
 
         clientInstance.on('error', (error) => {
             console.error('Client error:', error);
+            sendStatusToApi('client-error', error.message);
         });
 
-        // Initialize the client
         clientInstance.initialize();
     }
     return clientInstance;
