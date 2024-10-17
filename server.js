@@ -71,7 +71,8 @@ app.get('/api/qr-code', (req, res) => {
 
 const sendStatusToApi = async (status, data) => {
     try {
-        const response = await axios.post(`${BASE_URL}/api/status`, {
+        const baseURL =  'https://bulkwhatsapp.onrender.com';  // Ensure BASE_URL is properly set
+        const response = await axios.post(`${baseURL}/api/status`, {
             status: status,
             data: data
         });
@@ -80,6 +81,7 @@ const sendStatusToApi = async (status, data) => {
         console.error('Error sending status to API:', error);
     }
 };
+
 // Singleton pattern for WhatsApp client
 const getClient = () => {
     if (!clientInstance) {
