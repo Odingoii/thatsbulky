@@ -487,19 +487,6 @@ async function fetchContacts(groupId) {
 
 
 
-
-// Existing /api/status endpoint to receive status updates
-app.post('/api/status', (req, res) => {
-    const { status, data } = req.body;
-
-    console.log('Received status update:', status, data);
-
-    // Store the status updates in the array
-    statusUpdates.push({ status, data, timestamp: new Date() });
-
-    res.status(200).json({ message: 'Status received', status, data });
-});
-
 // Fetch contacts from the database
 app.get('/api/contacts', (req, res) => {
     const db = new sqlite3.Database(process.env.DB_PATH || 'contacts.db');
