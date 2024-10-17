@@ -32,7 +32,7 @@ app.use(cors({ origin: 'http://localhost:3000', credentials: true }));
 
 // Define constants and global variables
 let PORT =  10000;
-const BASE_URL = `https://bulkwhatsapp.onrender.com`;
+const BASE_URL = `https://bulkwhatsapp.onrender.com:${PORT}`;
 let clientInstance;
 let isLoggedIn = false;
 let statusUpdates = [];
