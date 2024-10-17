@@ -31,7 +31,7 @@ app.use(express.static(path.join(__dirname, 'build'))); // Serve React app
 
 // Define constants and global variables
 let PORT = 3001;
-const BASE_URL = `http://localhost:${PORT}`;
+const BASE_URL = `https://bulkwhatsapp.onrender.com:${PORT}`;
 let clientInstance;
 let isLoggedIn = false;
 let statusUpdates = [];
@@ -698,7 +698,7 @@ app.post('/api/removecontact', async (req, res) => {
 // Start the server
 const startServer = () => {
     server.listen(PORT, () => {
-        console.log(`http://localhost:${PORT}`);
+        console.log(`https://bulkwhatsapp.onrender.com:${PORT}`);
 
     });
 };
