@@ -669,7 +669,7 @@ app.post('/api/removecontact', async (req, res) => {
 // Start the server
 const startServer = () => {
     server.listen(PORT, () => {
-        console.log(`https://bulkwhatsapp.onrender.com${PORT}`);
+        console.log(`https://bulkwhatsapp.onrender.com$:{PORT}`);
 
     });
 };
