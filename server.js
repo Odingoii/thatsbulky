@@ -43,7 +43,6 @@ let isLoggedIn = false;
 let statusUpdates = [];
 
 
-
 app.post('/api/status', (req, res) => {
     const { status, data } = req.body;
 
