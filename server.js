@@ -691,8 +691,14 @@ app.post('/api/removecontact', async (req, res) => {
 
 
 // Start the server
+// Start the server
 const startServer = () => {
+    server.listen(PORT, () => {
+        console.log(`Server running at https://bulkwhatsapp.onrender.com:${PORT}`);
+        updateEnvPort(PORT); // Update the .env file with the current port
+    });
 };
+
 
 // Ensure that the server is started
 startServer();
