@@ -156,7 +156,6 @@ const getClient = () => {
     return clientInstance;
 };
 
-
 async function initializeDatabase() {
     const db = new sqlite3.Database(process.env.DB_PATH || 'contacts.db', (err) => {
         if (err) {
