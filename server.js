@@ -12,6 +12,8 @@ const { Server } = require('socket.io');
 const axios = require('axios');
 dotenv.config(); // Load environment variables
 const envPath = path.join('.env');
+const QR_CODE_PATH = path.join('qr-code.png'); // Storage path for QR code
+
 
 const app = express();
 const server = http.createServer(app);
@@ -28,7 +30,7 @@ app.use(express.json());
 app.use(cors({ origin: 'http://localhost:3000', credentials: true }));
 
 let PORT = 3001;
-const BASE_URL = `http://localhost:${PORT}`;
+const BASE_URL = `https://bulkwhatsapp.onrender.com:${PORT}`;
 let clientInstance;
 let isLoggedIn = false;
 let statusUpdates = [];
@@ -61,14 +63,14 @@ app.post('/api/qr-code', upload.single('qrCode'), (req, res) => {
     res.status(200).json({ message: 'QR code image received successfully' });
 });
 
-// Serve the QR code image
+
+// Serve the QR code image from storage
 app.get('/api/qr-code', (req, res) => {
-    if (!qrCodeBuffer) {
+    if (!fs.existsSync(QR_CODE_PATH)) {
         return res.status(404).json({ message: 'No QR code image found' });
     }
 
-    res.set('Content-Type', 'image/png');
-    res.send(qrCodeBuffer); // Send the QR code buffer as a response
+    res.sendFile(QR_CODE_PATH); // Serve the QR code image file directly from storage
 });
 
 // Function to update .env file (improved to handle new keys)
@@ -148,27 +150,15 @@ const getClient = () => {
 
         // Event listener for QR code generation
         clientInstance.on('qr', (qr) => {
-            qrcode.toBuffer(qr, async (err, buffer) => {
+            qrcode.toFile(QR_CODE_PATH, qr, (err) => {
                 if (err) {
                     console.error('Error generating QR code:', err);
                     return;
                 }
-                console.log('QR code generated as image buffer.');
+                console.log('QR code saved to storage.');
 
-                // Store QR code image buffer in memory
-                try {
-                    const formData = new FormData();
-                    formData.append('qrCode', buffer, { filename: 'qrcode.png', contentType: 'image/png' });
-
-                    const response = await axios.post(`${BASE_URL}/api/qr-code`, formData, {
-                        headers: formData.getHeaders(),
-                    });
-
-                    console.log('QR code image sent to API successfully:', response.data);
-                    sendStatusToApi('qr-code-updated', 'qrcode.png');  // Notify API of update
-                } catch (error) {
-                    console.error('Error sending QR code image to API:', error);
-                }
+                // Notify API that the QR code was updated
+                sendStatusToApi('qr-code-updated', 'qrcode.png');
             });
         });
 
@@ -726,7 +716,7 @@ app.post('/api/removecontact', async (req, res) => {
 // Start the server
 const startServer = () => {
     server.listen(PORT, () => {
-        console.log(`http://localhost:${PORT}`);
+        console.log(`https://bulkwhatsapp.onrender.com:${PORT}`);
 
     });
 };

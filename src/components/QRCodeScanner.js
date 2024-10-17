@@ -69,3 +69,4 @@ function QRCodeScanner({ onLogin }) {
 }
 
 export default QRCodeScanner;
+
