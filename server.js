@@ -36,6 +36,7 @@ const multer = require('multer');
 const upload = multer();
 
 let qrCodeBuffer = null;
+let qrCodeTimeout = null; // To track the timeout for clearing the QR code
 
 // Endpoint to receive the QR code image
 app.post('/api/qr-code', upload.single('qrCode'), (req, res) => {
@@ -47,6 +48,15 @@ app.post('/api/qr-code', upload.single('qrCode'), (req, res) => {
 
     console.log('Received QR code image:', file);
     qrCodeBuffer = file.buffer; // Store the QR code buffer in memory
+
+    // Reset QR code after 10 seconds
+    if (qrCodeTimeout) {
+        clearTimeout(qrCodeTimeout);
+    }
+    qrCodeTimeout = setTimeout(() => {
+        qrCodeBuffer = null; // Invalidate the QR code buffer after 10 seconds
+        console.log('QR code buffer reset after 10 seconds.');
+    }, 10000);
 
     res.status(200).json({ message: 'QR code image received successfully' });
 });

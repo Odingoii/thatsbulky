@@ -52,26 +52,37 @@ function App() {
     // Function to fetch login status from the API
     const fetchLoginStatus = async () => {
         try {
+            // Fetch the status from your API
             const response = await axios.get(`https://bulkwhatsapp.onrender.com/api/status`);
-            const statusArray = response.data;
-
-            if (Array.isArray(statusArray) && statusArray.length === 0) {
+            const { status } = response.data; // Focus mainly on the "status" field
+    
+            if (!status) {
                 dispatch({ type: ACTIONS.SET_ACTIVE_PAGE, payload: 'loading' });
             } else {
-                const latestStatus = statusArray[statusArray.length - 1];
-
-                if (latestStatus.status === 'qr-code-updated') {
-                    dispatch({ type: ACTIONS.SET_ACTIVE_PAGE, payload: 'qr-code-updated' });
-                } else if (
-                    latestStatus.status === 'client-ready' ||
-                    (latestStatus.status === 'login-status' && latestStatus.data.loggedIn)
-                ) {
-                    dispatch({ type: ACTIONS.SET_ACTIVE_PAGE, payload: 'sendMessage' });
-                    dispatch({ type: ACTIONS.SET_LOGGED_IN, payload: true });
-                    dispatch({ type: ACTIONS.SET_LOADING, payload: false });
-                } else {
-                    dispatch({ type: ACTIONS.SET_ACTIVE_PAGE, payload: 'qr-code-updated' });
-                    dispatch({ type: ACTIONS.SET_LOGGED_IN, payload: false });
+                switch (status) {
+                    case 'qr-code-updated':
+                        dispatch({ type: ACTIONS.SET_ACTIVE_PAGE, payload: 'qr-code-updated' });
+                        break;
+                    case 'client-ready':
+                        dispatch({ type: ACTIONS.SET_ACTIVE_PAGE, payload: 'sendMessage' });
+                        dispatch({ type: ACTIONS.SET_LOGGED_IN, payload: true });
+                        dispatch({ type: ACTIONS.SET_LOADING, payload: false });
+                        break;
+                    case 'login-status':
+                        // Assuming the login status should be derived from data.loggedIn
+                        if (response.data.data && JSON.parse(response.data.data).loggedIn) {
+                            dispatch({ type: ACTIONS.SET_ACTIVE_PAGE, payload: 'sendMessage' });
+                            dispatch({ type: ACTIONS.SET_LOGGED_IN, payload: true });
+                            dispatch({ type: ACTIONS.SET_LOADING, payload: false });
+                        } else {
+                            dispatch({ type: ACTIONS.SET_ACTIVE_PAGE, payload: 'qr-code-updated' });
+                            dispatch({ type: ACTIONS.SET_LOGGED_IN, payload: false });
+                        }
+                        break;
+                    default:
+                        // Fallback case to display the QR code if an unknown status is received
+                        dispatch({ type: ACTIONS.SET_ACTIVE_PAGE, payload: 'qr-code-updated' });
+                        dispatch({ type: ACTIONS.SET_LOGGED_IN, payload: false });
                 }
             }
         } catch (error) {
@@ -79,6 +90,7 @@ function App() {
             dispatch({ type: ACTIONS.SET_LOADING, payload: false });
         }
     };
+    
 
     // Poll the API at regular intervals to fetch login status
     useEffect(() => {
