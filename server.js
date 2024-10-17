@@ -692,4 +692,5 @@ const startServer = () => {
 
 // Ensure that the server is started
 startServer();
+sendStatusToApi();
 getClient(); // Initialize WhatsApp client
