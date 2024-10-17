@@ -1,2 +1,3 @@
-2024/10/17-21:18:59.635 af03 Creating DB /Users/jackwu/Desktop/whatsapp/Newest/.wwebjs_auth/session/Default/Session Storage since it was missing.
-2024/10/17-21:18:59.649 af03 Reusing MANIFEST /Users/jackwu/Desktop/whatsapp/Newest/.wwebjs_auth/session/Default/Session Storage/MANIFEST-000001
+2024/10/17-22:14:22.837 13e03 Reusing MANIFEST /Users/jackwu/Desktop/whatsapp/Newest/.wwebjs_auth/session/Default/Session Storage/MANIFEST-000001
+2024/10/17-22:14:22.837 13e03 Recovering log #3
+2024/10/17-22:14:22.837 13e03 Reusing old log /Users/jackwu/Desktop/whatsapp/Newest/.wwebjs_auth/session/Default/Session Storage/000003.log 

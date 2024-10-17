@@ -11,12 +11,8 @@ const http = require('http');
 const { Server } = require('socket.io');
 const axios = require('axios');
 dotenv.config(); // Load environment variables
-const multer = require('multer');
-const upload = multer();
+const envPath = path.join('.env');
 
-// Define constants and global variables
-let PORT = 3001;
-const BASE_URL = `https://bulkwhatsapp.onrender.com:${PORT}`;
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -25,24 +21,21 @@ const io = new Server(server, {
         methods: ['GET', 'POST'],
         credentials: true,
     },
-}); 
-
-app.use(express.json());
-let statusUpdates = [];
-let clientInstance = null;
-let qrCodeBuffer = null;
-let isLoggedIn = false;
-// Serve the QR code image (stored in memory)
-
+});
 
 // Middleware setup
 app.use(express.json());
 app.use(cors({ origin: 'http://localhost:3000', credentials: true }));
-app.use(express.static(path.join(__dirname, 'build'))); // Serve React app
-// Setup paths and public directory
 
+let PORT = 3001;
+const BASE_URL = `http://localhost:${PORT}`;
+let clientInstance;
+let isLoggedIn = false;
+let statusUpdates = [];
+const multer = require('multer');
+const upload = multer();
 
-
+let qrCodeBuffer = null;
 
 // Endpoint to receive the QR code image
 app.post('/api/qr-code', upload.single('qrCode'), (req, res) => {
@@ -68,19 +61,39 @@ app.get('/api/qr-code', (req, res) => {
     res.send(qrCodeBuffer); // Send the QR code buffer as a response
 });
 
+// Function to update .env file (improved to handle new keys)
+const updateEnvFile = (key, value) => {
+    const envVars = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8').split('\n') : [];
+    let found = false;
+    const newEnvVars = envVars.map((line) => {
+        if (line.startsWith(`${key}=`)) {
+            found = true;
+            return `${key}="${value}"`; // Update the existing key-value pair
+        }
+        return line;
+    });
 
+    if (!found) {
+        newEnvVars.push(`${key}="${value}"`); // Add new key-value pair if key wasn't found
+    }
 
+    fs.writeFileSync(envPath, newEnvVars.join('\n'));
+};
+
+// Function to send status to API (updates .env instead of API)
 const sendStatusToApi = async (status, data) => {
     try {
-        if (!status) throw new Error('Status is required to send to API');
-        
-        const response = await axios.post(`${BASE_URL}/api/status`, { status, data });
-        console.log('Status sent to API:', response.data);
+        // Update the status in the .env file
+        updateEnvFile('STATUS', status);
+        updateEnvFile('STATUS_DATA', JSON.stringify(data || ''));
+
+        console.log(`Status updated in .env: ${status}, Data: ${data}`);
     } catch (error) {
-        console.error(`Error sending status to API: ${error.message}`);
+        console.error('Error updating status in .env:', error);
     }
 };
 
+// Endpoint to receive and store status updates (and push to .env)
 app.post('/api/status', (req, res) => {
     const { status, data } = req.body;
 
@@ -90,14 +103,27 @@ app.post('/api/status', (req, res) => {
 
     const statusUpdate = { status, data, timestamp: new Date() };
     statusUpdates.push(statusUpdate);
+    sendStatusToApi(status, data);  // Update .env with the new status
 
     console.log('Status received:', statusUpdate);
     res.status(200).json({ message: 'Status received successfully', statusUpdate });
 });
 
+// Endpoint to fetch status from .env file
 app.get('/api/status', (req, res) => {
-    res.status(200).json(statusUpdates);
+    const status = process.env.STATUS;
+    const statusData = process.env.STATUS_DATA || null;
+
+    console.log('STATUS:', status);
+    console.log('STATUS_DATA:', statusData);
+
+    if (!status) {
+        return res.status(204).json({ message: 'No status found in environment variables' });
+    }
+
+    res.status(200).json({ status, data: statusData });
 });
+
 
 // Singleton pattern for WhatsApp client
 const getClient = () => {
@@ -110,17 +136,16 @@ const getClient = () => {
             }
         });
 
-        // QR code generation event
+        // Event listener for QR code generation
         clientInstance.on('qr', (qr) => {
             qrcode.toBuffer(qr, async (err, buffer) => {
                 if (err) {
                     console.error('Error generating QR code:', err);
                     return;
                 }
-                qrCodeBuffer = buffer;
                 console.log('QR code generated as image buffer.');
 
-                // Send QR code image buffer to your API as form-data
+                // Store QR code image buffer in memory
                 try {
                     const formData = new FormData();
                     formData.append('qrCode', buffer, { filename: 'qrcode.png', contentType: 'image/png' });
@@ -128,54 +153,47 @@ const getClient = () => {
                     const response = await axios.post(`${BASE_URL}/api/qr-code`, formData, {
                         headers: formData.getHeaders(),
                     });
+
                     console.log('QR code image sent to API successfully:', response.data);
-                    await sendStatusToApi('qr-code-updated', 'qrcode.png'); // Notify API of update
+                    sendStatusToApi('qr-code-updated', 'qrcode.png');  // Notify API of update
                 } catch (error) {
-                    console.error(`Error sending QR code image to API: ${error.message}`);
+                    console.error('Error sending QR code image to API:', error);
                 }
             });
         });
 
-        // Client ready event
+        // When client is ready
         clientInstance.on('ready', async () => {
             console.log('Client is ready!');
-            isLoggedIn = true;
-            await sendStatusToApi('client-ready', null);
-            await sendStatusToApi('login-status', { loggedIn: isLoggedIn });
+            sendStatusToApi('client-ready', null);
+            sendStatusToApi('login-status', { loggedIn: true });
 
             try {
                 await initializeDatabase();
                 await saveContactsToDatabase();
-
-                // Delete the QR code image after successful login
-                if (fs.existsSync(qrCodeImagePath)) {
-                    fs.unlinkSync(qrCodeImagePath);
-                }
             } catch (err) {
                 console.error('Error during initialization:', err);
+                sendStatusToApi('error', { message: 'Error during initialization', error: err.message });
             }
         });
 
-        // Authentication and logout handling
-        clientInstance.on('authenticated', async () => {
+        // Authentication event listeners
+        clientInstance.on('authenticated', () => {
             console.log('User is logged in!');
-            isLoggedIn = true;
-            await sendStatusToApi('loggedIn', null);
-            await sendStatusToApi('login-status', { loggedIn: isLoggedIn });
+            sendStatusToApi('loggedIn', null);
+            sendStatusToApi('login-status', { loggedIn: true });
         });
 
-        clientInstance.on('auth_failure', async () => {
-            console.log('User is not logged in. Please scan the QR code again.');
-            isLoggedIn = false;
-            await sendStatusToApi('auth-failure', 'QR code required');
-            await sendStatusToApi('login-status', { loggedIn: isLoggedIn });
+        clientInstance.on('auth_failure', () => {
+            console.log('Authentication failed. Please scan the QR code again.');
+            sendStatusToApi('auth_failure', null);
+            sendStatusToApi('login-status', { loggedIn: false });
         });
 
-        clientInstance.on('disconnected', async (reason) => {
+        clientInstance.on('disconnected', (reason) => {
             console.log('Client has been logged out:', reason);
-            isLoggedIn = false;
-            await sendStatusToApi('client-disconnected', reason);
-            await sendStatusToApi('login-status', { loggedIn: isLoggedIn });
+            sendStatusToApi('disconnected', reason);
+            sendStatusToApi('login-status', { loggedIn: false });
         });
 
         clientInstance.on('error', (error) => {
@@ -183,11 +201,11 @@ const getClient = () => {
             sendStatusToApi('client-error', error.message);
         });
 
+        // Initialize the client
         clientInstance.initialize();
     }
     return clientInstance;
 };
-
 
 // Initialize the database
 async function initializeDatabase() {
@@ -698,7 +716,7 @@ app.post('/api/removecontact', async (req, res) => {
 // Start the server
 const startServer = () => {
     server.listen(PORT, () => {
-        console.log(`https://bulkwhatsapp.onrender.com:${PORT}`);
+        console.log(`http://localhost:${PORT}`);
 
     });
 };
