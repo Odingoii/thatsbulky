@@ -703,10 +703,10 @@ app.post('/api/removecontact', async (req, res) => {
 });
 
 
-// Start the server
+// Start the serverß
 const startServer = () => {
     server.listen(PORT, () => {
-        console.log(`https://bulkwhatsapp.onrender.com$:{PORT}`);
+        console.log(`https://bulkwhatsapp.onrender.com$:${PORT}`);
 
     });
 };
