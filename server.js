@@ -12,7 +12,8 @@ const { Server } = require('socket.io');
 const axios = require('axios');
 dotenv.config(); // Load environment variables
 const envPath = path.join('.env');
-const QR_CODE_PATH = path.join('qr-code.png'); // Storage path for QR code
+const QR_CODE_PATH = path.join(__dirname, 'qr-code.png'); // Store QR code in the root directory of the project
+
 
 
 const app = express();
@@ -64,13 +65,18 @@ app.post('/api/qr-code', upload.single('qrCode'), (req, res) => {
 });
 
 
-// Serve the QR code image from storage
+// Serve the QR code image from /tmp storage
 app.get('/api/qr-code', (req, res) => {
     if (!fs.existsSync(QR_CODE_PATH)) {
         return res.status(404).json({ message: 'No QR code image found' });
     }
 
-    res.sendFile(QR_CODE_PATH); // Serve the QR code image file directly from storage
+    res.sendFile(QR_CODE_PATH, (err) => {
+        if (err) {
+            console.error('Error sending QR code file:', err);
+            res.status(500).json({ message: 'Error serving the QR code image' });
+        }
+    }); // Serve the QR code image file directly from /tmp storage
 });
 
 // Function to update .env file (improved to handle new keys)
