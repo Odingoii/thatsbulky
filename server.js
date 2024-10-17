@@ -81,6 +81,24 @@ const sendStatusToApi = async (status, data) => {
         console.error('Error sending status to API:', error);
     }
 };
+app.post('/api/status', (req, res) => {
+    const { status, data } = req.body;
+
+    if (!status) {
+        return res.status(400).json({ message: 'Status is required' });
+    }
+
+    const statusUpdate = { status, data, timestamp: new Date() };
+    statusUpdates.push(statusUpdate);
+
+    console.log('Status received:', statusUpdate);
+
+    res.status(200).json({ message: 'Status received successfully', statusUpdate });
+});
+app.get('/api/status', (req, res) => {
+    // Return the stored status updates
+    res.status(200).json(statusUpdates);
+});
 
 // Singleton pattern for WhatsApp client
 const getClient = () => {
@@ -557,10 +575,7 @@ app.get('/api/groups', (req, res) => {
         res.json(rows);
     });
 });
-app.get('/api/status', (req, res) => {
-    // Return the stored status updates
-    res.status(200).json(statusUpdates);
-});
+
 // Fetch contacts for a specific group
 app.get('/api/groups/:groupId/contacts', (req, res) => {
     const groupId = req.params.groupId;
