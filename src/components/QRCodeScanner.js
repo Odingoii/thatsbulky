@@ -9,23 +9,20 @@ function QRCodeScanner({ onLogin }) {
     const [status, setStatus] = useState('Loading QR Code...');
     const [loading, setLoading] = useState(true);
 
-    // Function to load the QR code from the backend API using window.api.fetchQrCode
+    // Function to load the QR code from the storage folder
     const loadQrCode = async () => {
         setLoading(true);
         setStatus('Loading QR Code...');
         try {
-            // Call the window.api.fetchQrCode() to fetch the QR code image path
-            const response = await window.api.fetchQrCode();
+            // Use a timestamp to bypass cache and ensure the latest image is fetched
+            const timestamp = new Date().getTime();
+            const imagePath = `uploads/qr-code?q=${timestamp}`; // QR code from storage
 
-            if (response && response.imagePath) {
-                // Set the image path for display
-                setQrCodeImage(response.imagePath);
-                setStatus('QR Code Loaded');
-            } else {
-                setStatus('Failed to load QR Code');
-            }
+            // Set the image path for display
+            setQrCodeImage(imagePath);
+            setStatus('QR Code Loaded');
         } catch (error) {
-            console.error('Error fetching QR code:', error);
+            console.error('Error loading QR code:', error);
             setStatus('Failed to load QR Code');
         } finally {
             setLoading(false);
@@ -36,7 +33,7 @@ function QRCodeScanner({ onLogin }) {
         // Load the QR code immediately on component mount
         loadQrCode();
 
-        // Refresh the QR code image every 10 seconds
+        // Refresh the QR code image every 10 seconds to ensure it's updated
         const interval = setInterval(loadQrCode, 10000);
 
         // Handle login success event from socket
@@ -44,7 +41,7 @@ function QRCodeScanner({ onLogin }) {
             onLogin(); // Trigger login success callback
         });
 
-        // Cleanup on unmount
+        // Cleanup on component unmount
         return () => {
             clearInterval(interval); // Clear interval to prevent memory leaks
             socket.off('login-success');
@@ -59,7 +56,13 @@ function QRCodeScanner({ onLogin }) {
                 <LoadingSpinner />
             ) : (
                 qrCodeImage ? (
-                    <img src={qrCodeImage} alt="QR Code" width="250" height="250" />
+                    <img 
+                        src={qrCodeImage} 
+                        alt="QR Code" 
+                        width="250" 
+                        height="250" 
+                        onError={loadQrCode} // Reload if there's an error loading the image
+                    />
                 ) : (
                     <p>No QR Code available. Please check again.</p>
                 )
@@ -69,4 +72,3 @@ function QRCodeScanner({ onLogin }) {
 }
 
 export default QRCodeScanner;
-

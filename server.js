@@ -1,20 +1,15 @@
 const fs = require('fs');
-const FormData = require('form-data');
 const path = require('path');
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode');
-const sqlite3 = require('sqlite3').verbose();
 const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
-const axios = require('axios');
+const multer = require('multer');
+
 dotenv.config(); // Load environment variables
-const envPath = path.join('.env');
-const QR_CODE_PATH = path.join(__dirname, 'qr-code.png'); // Store QR code in the root directory of the project
-
-
 
 const app = express();
 const server = http.createServer(app);
@@ -30,18 +25,46 @@ const io = new Server(server, {
 app.use(express.json());
 app.use(cors({ origin: 'http://localhost:3000', credentials: true }));
 
-let PORT = 3001;
-const BASE_URL = `https://bulkwhatsapp.onrender.com:${PORT}`;
-let clientInstance;
-let isLoggedIn = false;
-let statusUpdates = [];
-const multer = require('multer');
-const upload = multer();
+const PORT = process.env.PORT || 3001;
+const QR_CODE_PATH = path.join(__dirname, 'uploads'); // Path to store QR code in 'uploads' folder
+const envPath = path.join('.env'); // Path to the .env file
 
-let qrCodeBuffer = null;
-let qrCodeTimeout = null; // To track the timeout for clearing the QR code
+// Setup multer to handle file uploads
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, QR_CODE_PATH); // Save to 'uploads' directory
+    },
+    filename: (req, file, cb) => {
+        cb(null, 'qrcode.png'); // Save QR code as 'qrcode.png'
+    }
+});
+const upload = multer({ storage });
 
-// Endpoint to receive the QR code image
+// Function to update .env file
+const updateEnvFile = (key, value) => {
+    const envVars = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8').split('\n') : [];
+    let found = false;
+    const newEnvVars = envVars.map((line) => {
+        if (line.startsWith(`${key}=`)) {
+            found = true;
+            return `${key}="${value}"`; // Update existing key-value pair
+        }
+        return line;
+    });
+
+    if (!found) {
+        newEnvVars.push(`${key}="${value}"`); // Add new key-value pair if not found
+    }
+
+    fs.writeFileSync(envPath, newEnvVars.join('\n'));
+};
+
+// Function to update login status in .env
+const updateLoginStatusInEnv = (status) => {
+    updateEnvFile('LOGIN_STATUS', status);
+};
+
+// Handle QR code upload and store it in 'uploads' folder
 app.post('/api/qr-code', upload.single('qrCode'), (req, res) => {
     const file = req.file;
 
@@ -49,162 +72,63 @@ app.post('/api/qr-code', upload.single('qrCode'), (req, res) => {
         return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    console.log('Received QR code image:', file);
-    qrCodeBuffer = file.buffer; // Store the QR code buffer in memory
-
-    // Reset QR code after 10 seconds
-    if (qrCodeTimeout) {
-        clearTimeout(qrCodeTimeout);
-    }
-    qrCodeTimeout = setTimeout(() => {
-        qrCodeBuffer = null; // Invalidate the QR code buffer after 10 seconds
-        console.log('QR code buffer reset after 10 seconds.');
-    }, 10000);
-
-    res.status(200).json({ message: 'QR code image received successfully' });
+    console.log('QR code image saved to storage:', file.path);
+    res.status(200).json({ message: 'QR code saved successfully' });
 });
 
-
-// Serve the QR code image from /tmp storage
+// Serve the QR code from storage
 app.get('/api/qr-code', (req, res) => {
-    if (!fs.existsSync(QR_CODE_PATH)) {
+    const filePath = path.join(QR_CODE_PATH, 'qrcode.png');
+
+    if (!fs.existsSync(filePath)) {
         return res.status(404).json({ message: 'No QR code image found' });
     }
 
-    res.sendFile(QR_CODE_PATH, (err) => {
+    res.sendFile(filePath, (err) => {
         if (err) {
-            console.error('Error sending QR code file:', err);
+            console.error('Error sending QR code:', err);
             res.status(500).json({ message: 'Error serving the QR code image' });
         }
-    }); // Serve the QR code image file directly from /tmp storage
-});
-
-// Function to update .env file (improved to handle new keys)
-const updateEnvFile = (key, value) => {
-    const envVars = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8').split('\n') : [];
-    let found = false;
-    const newEnvVars = envVars.map((line) => {
-        if (line.startsWith(`${key}=`)) {
-            found = true;
-            return `${key}="${value}"`; // Update the existing key-value pair
-        }
-        return line;
     });
-
-    if (!found) {
-        newEnvVars.push(`${key}="${value}"`); // Add new key-value pair if key wasn't found
-    }
-
-    fs.writeFileSync(envPath, newEnvVars.join('\n'));
-};
-
-// Function to send status to API (updates .env instead of API)
-const sendStatusToApi = async (status, data) => {
-    try {
-        // Update the status in the .env file
-        updateEnvFile('STATUS', status);
-        updateEnvFile('STATUS_DATA', JSON.stringify(data || ''));
-
-        console.log(`Status updated in .env: ${status}, Data: ${data}`);
-    } catch (error) {
-        console.error('Error updating status in .env:', error);
-    }
-};
-
-// Endpoint to receive and store status updates (and push to .env)
-app.post('/api/status', (req, res) => {
-    const { status, data } = req.body;
-
-    if (!status) {
-        return res.status(400).json({ message: 'Status is required' });
-    }
-
-    const statusUpdate = { status, data, timestamp: new Date() };
-    statusUpdates.push(statusUpdate);
-    sendStatusToApi(status, data);  // Update .env with the new status
-
-    console.log('Status received:', statusUpdate);
-    res.status(200).json({ message: 'Status received successfully', statusUpdate });
 });
-
-// Endpoint to fetch status from .env file
-app.get('/api/status', (req, res) => {
-    const status = process.env.STATUS;
-    const statusData = process.env.STATUS_DATA || null;
-
-    console.log('STATUS:', status);
-    console.log('STATUS_DATA:', statusData);
-
-    if (!status) {
-        return res.status(204).json({ message: 'No status found in environment variables' });
-    }
-
-    res.status(200).json({ status, data: statusData });
-});
-
 
 // Singleton pattern for WhatsApp client
+let clientInstance;
 const getClient = () => {
     if (!clientInstance) {
         clientInstance = new Client({
             authStrategy: new LocalAuth(),
-            puppeteer: {
-                headless: true,
-                args: ['--no-sandbox', '--disable-setuid-sandbox']
-            }
+            puppeteer: { headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] }
         });
 
         // Event listener for QR code generation
         clientInstance.on('qr', (qr) => {
-            qrcode.toFile(QR_CODE_PATH, qr, (err) => {
+            // Save QR code to the 'uploads' folder
+            qrcode.toFile(path.join(QR_CODE_PATH, 'qrcode.png'), qr, (err) => {
                 if (err) {
                     console.error('Error generating QR code:', err);
-                    return;
+                } else {
+                    console.log('QR code saved to storage.');
                 }
-                console.log('QR code saved to storage.');
-
-                // Notify API that the QR code was updated
-                sendStatusToApi('qr-code-updated', 'qrcode.png');
             });
         });
 
-        // When client is ready
-        clientInstance.on('ready', async () => {
+        // When client is ready (logged in)
+        clientInstance.on('ready', () => {
             console.log('Client is ready!');
-            sendStatusToApi('client-ready', null);
-            sendStatusToApi('login-status', { loggedIn: true });
-
-            try {
-                await initializeDatabase();
-                await saveContactsToDatabase();
-            } catch (err) {
-                console.error('Error during initialization:', err);
-                sendStatusToApi('error', { message: 'Error during initialization', error: err.message });
-            }
+            updateLoginStatusInEnv('loggedIn');
         });
 
-        // Authentication event listeners
-        clientInstance.on('authenticated', () => {
-            console.log('User is logged in!');
-            sendStatusToApi('loggedIn', null);
-            sendStatusToApi('login-status', { loggedIn: true });
-        });
-
+        // If authentication fails
         clientInstance.on('auth_failure', () => {
             console.log('Authentication failed. Please scan the QR code again.');
-            sendStatusToApi('auth_failure', null);
-            sendStatusToApi('login-status', { loggedIn: false });
+            updateLoginStatusInEnv('notLoggedIn');
         });
 
-        clientInstance.on('disconnected', (reason) => {
-            console.log('Client has been logged out:', reason);
-            sendStatusToApi('disconnected', reason);
-            sendStatusToApi('login-status', { loggedIn: false });
-        });
-
-        clientInstance.on('error', (error) => {
-            console.error('Client error:', error);
-            sendStatusToApi('client-error', error.message);
+        // When the client gets disconnected
+        clientInstance.on('disconnected', () => {
+            console.log('Client has been logged out.');
+            updateLoginStatusInEnv('notLoggedIn');
         });
 
         // Initialize the client
@@ -212,6 +136,25 @@ const getClient = () => {
     }
     return clientInstance;
 };
+
+// Function to get the login status from the .env file
+const getLoginStatus = () => {
+    const status = process.env.STATUS;
+    const statusData = process.env.STATUS_DATA;
+
+    return { status, data: statusData ? JSON.parse(statusData) : null };
+};
+
+// Endpoint to fetch the login status from .env
+app.get('/api/status', (req, res) => {
+    try {
+        const loginStatus = getLoginStatus();
+        res.status(200).json(loginStatus); // Send the status data as JSON
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch login status' });
+    }
+});
+
 
 // Initialize the database
 async function initializeDatabase() {

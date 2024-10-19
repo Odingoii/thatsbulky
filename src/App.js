@@ -49,13 +49,13 @@ export const useAppContext = () => useContext(AppContext);
 function App() {
     const [state, dispatch] = useReducer(appReducer, initialState);
 
-    // Function to fetch login status from the API
+    // Function to fetch login status from the .env file through the backend
     const fetchLoginStatus = async () => {
         try {
-            // Fetch the status from your API
+            // Fetch the status from your backend route (which reads from the .env file)
             const response = await axios.get(`https://bulkwhatsapp.onrender.com/api/status`);
-            const { status } = response.data; // Focus mainly on the "status" field
-    
+            const { status, data } = response.data; // Focus mainly on the "status" field
+
             if (!status) {
                 dispatch({ type: ACTIONS.SET_ACTIVE_PAGE, payload: 'loading' });
             } else {
@@ -69,8 +69,7 @@ function App() {
                         dispatch({ type: ACTIONS.SET_LOADING, payload: false });
                         break;
                     case 'login-status':
-                        // Assuming the login status should be derived from data.loggedIn
-                        if (response.data.data && JSON.parse(response.data.data).loggedIn) {
+                        if (data && data.loggedIn) {
                             dispatch({ type: ACTIONS.SET_ACTIVE_PAGE, payload: 'sendMessage' });
                             dispatch({ type: ACTIONS.SET_LOGGED_IN, payload: true });
                             dispatch({ type: ACTIONS.SET_LOADING, payload: false });
@@ -90,9 +89,8 @@ function App() {
             dispatch({ type: ACTIONS.SET_LOADING, payload: false });
         }
     };
-    
 
-    // Poll the API at regular intervals to fetch login status
+    // Poll the backend at regular intervals to fetch login status
     useEffect(() => {
         const pollLoginStatus = () => {
             fetchLoginStatus();

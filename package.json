@@ -3,30 +3,129 @@
   "version": "0.1.0",
   "private": true,
   "description": "WhatsApp bulk messaging app",
-  "author": "Aren't ready to die yet",
-  "main": "server.js",
+  "author": {
+      "name": "Aren't ready to die yet",
+      "email": "your-email@example.com"
+  },
+  "main": "main.js",
+  "homepage": "build",
   "dependencies": {
-    "axios": "^1.7.7",
-    "compression": "^1.7.4",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
-    "express": "^4.21.0",
-    "form-data": "^4.0.1",
-    "helmet": "^8.0.0",
-    "morgan": "^1.10.0",
-    "multer": "^1.4.5-lts.1",
-    "puppeteer": "^23.4.1",
-    "python-shell": "^5.0.0",
-    "qrcode": "^1.5.4",
-    "socket.io": "^4.8.0",
-    "sqlite3": "^5.1.7",
-    "whatsapp-web.js": "^1.26.0"
+      "@ckeditor/ckeditor5-build-classic": "^43.1.1",
+      "@ckeditor/ckeditor5-react": "^9.2.0",
+      "@testing-library/jest-dom": "^6.5.0",
+      "@testing-library/react": "^16.0.1",
+      "@testing-library/user-event": "^14.5.2",
+      "axios": "^0.21.4",
+      "better-sqlite3": "^11.3.0",
+      "compression": "^1.7.4",
+      "concurrently": "^9.0.1",
+      "cors": "^2.8.5",
+      "dotenv": "^16.4.5",
+      "express": "^4.21.1",
+      "form-data": "^4.0.1",
+      "helmet": "^8.0.0",
+      "morgan": "^1.10.0",
+      "pupeteer": "^0.0.1",
+      "puppeteer": "^23.6.0",
+      "python-shell": "^5.0.0",
+      "qrcode": "^1.5.4",
+      "react": "^18.3.1",
+      "react-dom": "^18.3.1",
+      "react-router-dom": "^6.26.2",
+      "react-scripts": "^5.0.1",
+      "replace": "^1.2.2",
+      "serve": "^14.2.0",
+      "socket.io": "^4.8.0",
+      "socket.io-client": "^4.8.0",
+      "web-vitals": "^4.2.3",
+      "whatsapp-web.js": "^1.26.0"
   },
   "scripts": {
-    "start": "node server.js",
-    "build": "npm install"
+      "start": "concurrently \"npm run start-react\" ",
+      "start-react": "react-scripts start && node server.js",
+      "start-server": "node server.js",
+      "build": "react-scripts build && npm run remove-build-paths",
+      "remove-build-paths": "replace '/build/' '' build/index.html",
+      "serve": "concurrently \"npx serve -s build\" \"node server.js\"",
+      "electron-start": "concurrently  \"npm run start\" \"electron .\"",
+      "electron-pack": "npm run build && npm run build-backend && electron-builder",
+      "electron": "electron",
+      "build-backend": "pkg server.js --targets node16-linux-x64 --output dist/backendExecutable",
+      "postinstall": "electron-builder install-app-deps"
   },
-  "engines": {
-    "node": ">=22.x"
+  "eslintConfig": {
+      "extends": [
+          "react-app",
+          "react-app/jest"
+      ]
+  },
+  "browserslist": {
+      "production": [
+          ">0.2%",
+          "not dead",
+          "not op_mini all"
+      ],
+      "development": [
+          "last 1 chrome version",
+          "last 1 firefox version",
+          "last 1 safari version"
+      ]
+  },
+  "build": {
+      "appId": "com.bulkwhatsapp.app",
+      "productName": "BulkWhatsApp",
+      "files": [
+          "build/**/*",
+          "main.js",
+          "node_modules/**/*",
+          {
+              "from": "dist/backendExecutable",
+              "to": "backendExecutable"
+          }
+      ],
+      "extraResources": [
+          {
+              "from": "dist/backendExecutable",
+              "to": "backendExecutable"
+          }
+      ],
+      "asarUnpack": [
+          "backendExecutable"
+      ],
+      "linux": {
+          "icon": "public/icon.png",
+          "target": [
+              "AppImage",
+              "deb"
+          ],
+          "category": "Utility"
+      },
+      "mac": {
+          "icon": "public/icon.icns",
+          "target": [
+              "dmg",
+              "zip"
+          ]
+      },
+      "win": {
+          "icon": "public/icon.ico",
+          "target": [
+              "nsis"
+          ]
+      },
+      "directories": {
+          "buildResources": "public"
+      }
+  },
+  "pkg": {
+      "targets": [
+          "node18-linux-x64"
+      ]
+  },
+  "devDependencies": {
+      "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
+      "electron": "^32.2.0",
+      "electron-builder": "^25.1.8",
+      "pkg": "^5.8.1"
   }
 }
