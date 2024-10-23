@@ -8,7 +8,7 @@ const db = new sqlite3.Database(process.env.DB_PATH || 'contacts.db');
 app.use(express.json()); // Parse JSON bodies
 
 // Base URL for external API calls
-const BASE_URL = 'http://localhost:3001'; // Adjust this to your actual base URL
+const BASE_URL = 'http://bulkwhatsappserver:10000'; // Adjust this to your actual base URL
 
 // Fetch groups data with contact count
 app.get('/api/groups-data', async (req, res) => {
