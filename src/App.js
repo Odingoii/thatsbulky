@@ -1,5 +1,5 @@
 import React, { useReducer, useEffect, useContext, createContext } from 'react';
-import axios from 'axios';
+import { fetchLoginStatus } from './api'; // Import the API call from api.js
 import QRCodeScanner from './components/QRCodeScanner';
 import Sidebar from './components/Sidebar';
 import GroupView from './components/GroupView';
@@ -8,7 +8,6 @@ import ContactSelection from './components/ContactSelection';
 import LoadingSpinner from './components/LoadingSpinner';
 import GroupDetail from './components/GroupDetail';
 import './App.css'; // Ensure this contains the global styles
-const BASE_URL = 'http://bulkwhatsappserver:10000';
 
 // Create a context for the app state
 const AppContext = createContext();
@@ -52,11 +51,10 @@ function App() {
     const [state, dispatch] = useReducer(appReducer, initialState);
 
     // Function to fetch login status from the .env file through the backend
-    const fetchLoginStatus = async () => {
+    const handleLoginStatus = async () => {
         try {
-            // Fetch the status from your backend route (which reads from the .env file)
-            const response = await axios.get(`${BASE_URL}/api/status`);
-            const { status} = response.data; // Focus on the "status" field
+            const statusData = await fetchLoginStatus();
+            const { status } = statusData; // Focus on the "status" field
 
             if (!status) {
                 dispatch({ type: ACTIONS.SET_ACTIVE_PAGE, payload: 'loading' });
@@ -71,7 +69,6 @@ function App() {
                         dispatch({ type: ACTIONS.SET_LOADING, payload: false });
                         break;
                     default:
-                        // Fallback case to display the QR code if an unknown status is received
                         dispatch({ type: ACTIONS.SET_ACTIVE_PAGE, payload: 'loading' });
                         dispatch({ type: ACTIONS.SET_LOGGED_IN, payload: false });
                 }
@@ -85,10 +82,9 @@ function App() {
     // Poll the backend at regular intervals to fetch login status
     useEffect(() => {
         const pollLoginStatus = () => {
-            fetchLoginStatus();
+            handleLoginStatus();
         };
 
-        // Only start polling if the user is not logged in
         if (!state.loggedIn) {
             const interval = setInterval(pollLoginStatus, 15000);
             return () => clearInterval(interval);
@@ -98,9 +94,7 @@ function App() {
     return (
         <AppContext.Provider value={{ state, dispatch }}>
             <div className="app-frame">
-                {/* Render the spinner if loading */}
                 {state.loading && <LoadingSpinner />}
-                {/* Render the QR code scanner as an overlay if the QR code scanner is active */}
                 {state.activePage === 'qr-code-updated' && <QRCodeScanner />}
                 <div className={`content-wrapper ${state.loading || state.activePage === 'qr-code-updated' ? 'blurred' : ''}`}>
                     <Sidebar disabled={state.loading} />
