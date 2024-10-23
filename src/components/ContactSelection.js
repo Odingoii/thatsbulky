@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './ContactSelection.css';
 import useAppContext from '../App';
+import { fetchContacts, fetchGroups, createGroup } from '../api';  // Import API service functions
 
 function ContactSelection() {
     const { dispatch } = useAppContext(); // Get global state dispatch
@@ -16,12 +17,11 @@ function ContactSelection() {
     useEffect(() => {
         const fetchContactsAndGroups = async () => {
             try {
-                const [contactsResponse, groupsResponse] = await Promise.all([
-                    window.api.getContacts(), // Fetch contacts
-                    window.api.getGroups()    // Fetch existing groups for validation
-                ]);
-                setContacts(contactsResponse);
-                setExistingGroups(groupsResponse.map(group => group.name.toLowerCase())); // Store group names in lowercase
+                const contactsData = await fetchContacts();
+                const groupsData = await fetchGroups();
+
+                setContacts(contactsData);
+                setExistingGroups(groupsData.map(group => group.name.toLowerCase())); // Store group names in lowercase
                 setLoading(false);
             } catch (err) {
                 console.error('Error fetching data:', err);
@@ -35,18 +35,13 @@ function ContactSelection() {
 
     // Handle contact selection/deselection
     const handleContactSelection = (contactId) => {
-        setSelectedContacts((prevSelected) => {
-            if (prevSelected.includes(contactId)) {
-                // Deselect the contact if already selected
-                return prevSelected.filter(id => id !== contactId);
-            } else {
-                // Select the contact
-                return [...prevSelected, contactId];
-            }
-        });
+        setSelectedContacts((prevSelected) => 
+            prevSelected.includes(contactId) 
+                ? prevSelected.filter(id => id !== contactId) 
+                : [...prevSelected, contactId]
+        );
     };
 
-    // Handle form submission to create the group
     const handleCreateGroup = async () => {
         const trimmedGroupName = groupName.trim().toLowerCase();
 
@@ -68,27 +63,10 @@ function ContactSelection() {
             return;
         }
 
-        // Log the data being sent to the API
-        const groupData = {
-            name: groupName.trim(),
-            contactIds: selectedContacts
-        };
-        console.log('Data being sent to createGroup API:', groupData); // Log the group data
-
         try {
-            const response = await window.api.createGroup(groupData);
-
-            // Check if the response indicates success
-            if (response && response.success) {
-                // Group creation successful, redirect or reset form
-                dispatch({ type: 'SET_ACTIVE_PAGE', payload: 'groups' }); // Navigate to groups view
-            } else if (response.error) {
-                // Handle error messages correctly
-                setError(response.error);
-            } else {
-                // Handle unexpected response
-                setError('Unexpected response from the server.');
-            }
+            // Create the group using the API
+            await createGroup(groupName.trim(), selectedContacts);
+            dispatch({ type: 'SET_ACTIVE_PAGE', payload: 'groups' }); // Navigate to groups view
         } catch (err) {
             console.error('Error creating group:', err);
             setError('Failed to create the group.');

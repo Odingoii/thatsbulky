@@ -1,6 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useAppContext, ACTIONS } from '../App';
 import './GroupDetail.css';
+import {
+    fetchGroupContacts,
+    fetchContacts,
+    updateContactInGroup,
+    addContactToGroup,
+    removeContactFromGroup
+} from '../api';  // Import API service functions
 
 function GroupDetail() {
     const { state, dispatch } = useAppContext();
@@ -24,7 +31,7 @@ function GroupDetail() {
             }
 
             try {
-                const contactList = await window.api.getGroupContacts(groupId);
+                const contactList = await fetchGroupContacts(groupId);
                 setContacts(contactList);
                 setGroup({ id: groupId, name: `Group ${groupId}` });
             } catch (err) {
@@ -36,7 +43,7 @@ function GroupDetail() {
 
         const fetchAllContacts = async () => {
             try {
-                const contactsFromDb = await window.api.getContacts();
+                const contactsFromDb = await fetchContacts();
                 setAllContacts(contactsFromDb);
             } catch (err) {
                 setError('Failed to load all contacts.');
@@ -75,16 +82,16 @@ function GroupDetail() {
         try {
             for (const contact of contacts) {
                 if (contact.id) {
-                    await window.api.updateContactInGroup(groupId, contact.id, {
+                    await updateContactInGroup(groupId, contact.id, {
                         name: contact.name,
                         phone: contact.phone,
                         custom_name: contact.custom_name,
                     });
                 } else {
-                    await window.api.addContactToGroup(groupId, contact);
+                    await addContactToGroup(groupId, contact.id);
                 }
             }
-            const updatedContacts = await window.api.getGroupContacts(groupId);
+            const updatedContacts = await fetchGroupContacts(groupId);
             setContacts(updatedContacts);
             setSuccessMessage('Successfully saved all contacts.');
         } catch (err) {
@@ -97,11 +104,11 @@ function GroupDetail() {
             for (const contactId of selectedContacts) {
                 const contact = allContacts.find(c => c.id === contactId);
                 if (contact) {
-                    await window.api.addContactToGroup(groupId, contact);
+                    await addContactToGroup(groupId, contact.id);
                 }
             }
 
-            const updatedContacts = await window.api.getGroupContacts(groupId);
+            const updatedContacts = await fetchGroupContacts(groupId);
             setContacts(updatedContacts);
             setSuccessMessage('Successfully added selected contacts to the group.');
             setShowAddContacts(false);
@@ -112,7 +119,7 @@ function GroupDetail() {
 
     const handleDeleteContact = async (contactId) => {
         try {
-            await window.api.removeContactFromGroup(groupId, contactId);
+            await removeContactFromGroup(groupId, contactId);
             const updatedContacts = contacts.filter(contact => contact.id !== contactId);
             setContacts(updatedContacts);
             setSuccessMessage('Contact deleted successfully.');

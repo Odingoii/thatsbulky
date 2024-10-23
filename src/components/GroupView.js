@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAppContext, ACTIONS } from '../App'; // Import the context and actions
 import './GroupView.css';
+import { fetchGroups } from '../api';  // Import API service function
 
 function GroupView() {
     const [groups, setGroups] = useState([]); // List of groups
@@ -12,14 +13,11 @@ function GroupView() {
 
     // Fetch groups on component mount
     useEffect(() => {
-        const fetchGroups = async () => {
+        const loadGroups = async () => {
             try {
-                // Call the appropriate API to get the groups
-                const response = await window.api.getGroups(); // Fetch groups with contact counts
-                if (response.error) {
-                    throw new Error(response.error);
-                }
-                setGroups(response); // Set the fetched groups into state
+                // Fetch groups from the backend using API service
+                const groupsData = await fetchGroups();
+                setGroups(groupsData); // Set the fetched groups into state
             } catch (err) {
                 console.error('Error fetching groups:', err);
                 setError('Failed to load groups.');
@@ -28,7 +26,7 @@ function GroupView() {
             }
         };
 
-        fetchGroups();
+        loadGroups();
     }, []);
 
     // Handle group selection

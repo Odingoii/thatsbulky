@@ -2,36 +2,30 @@ import React, { useState, useEffect } from 'react';
 import { CKEditor } from '@ckeditor/ckeditor5-react';
 import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
 import './SendMessage.css'; // Assuming styles are in this file
+import { fetchGroups, fetchGroupContacts, sendMessageToGroup } from '../api'; // Import API functions
 
 // GroupView component for selecting a group
-function GroupView({ onGroupSelect, selectedGroup }) {
+function GroupView({ selectedGroup, onGroupSelect }) {
     const [groups, setGroups] = useState([]);
 
     // Fetch groups on component mount
     useEffect(() => {
-        const fetchGroups = async () => {
+        const loadGroups = async () => {
             try {
-                const response = await window.api.getGroups(); // Use the Electron API to fetch groups
-                if (Array.isArray(response)) {
-                    setGroups(response);
-                    console.log('Fetched groups:', response); // Log fetched groups
-                } else {
-                    console.warn('Unexpected response format for groups:', response);
-                    setGroups([]);
-                }
-            } catch (err) {
-                console.error('Error fetching groups:', err);
+                const groupsData = await fetchGroups();
+                setGroups(groupsData);
+            } catch (error) {
+                console.error('Error fetching groups:', error);
                 setGroups([]); // Set an empty array on error
             }
         };
 
-        fetchGroups();
+        loadGroups();
     }, []);
 
     const handleGroupChange = (event) => {
         const groupId = event.target.value;
-        console.log('Group selected:', groupId); // Log the selected group
-        onGroupSelect(groupId); // Callback to parent component
+        onGroupSelect(groupId);  // Call the passed prop function
     };
 
     return (
@@ -44,7 +38,7 @@ function GroupView({ onGroupSelect, selectedGroup }) {
                 className="group-dropdown"
             >
                 <option value="">-- Select Group --</option>
-                {Array.isArray(groups) && groups.map(group => (
+                {groups.map(group => (
                     <option key={group.id} value={group.id}>
                         {group.name}
                     </option>
@@ -55,40 +49,36 @@ function GroupView({ onGroupSelect, selectedGroup }) {
 }
 
 function SendMessage() {
-    const [selectedGroup, setSelectedGroup] = useState('');
+    const [selectedGroup, setSelectedGroup] = useState('');  // Track selected group
     const [message, setMessage] = useState('');
     const [groupContacts, setGroupContacts] = useState([]);
     const [selectedSalutation, setSelectedSalutation] = useState('Hey');
-    const [useCustomName, setUseCustomName] = useState(false); // Default to false
+    const [useCustomName, setUseCustomName] = useState(false);
 
     const salutations = ['Hey', 'Hello', 'Dear', 'Hi'];
 
     // Fetch contacts when the selected group changes
     useEffect(() => {
-        const fetchGroupContacts = async () => {
-            if (selectedGroup) {
-                try {
-                    const response = await window.api.getGroupContacts(selectedGroup);
-                    if (Array.isArray(response)) {
-                        setGroupContacts(response);
-                        console.log('Fetched group contacts for group:', selectedGroup, response); // Log fetched contacts
-                    } else {
-                        console.warn('Unexpected response format for group contacts:', response);
-                        setGroupContacts([]);
-                    }
-                } catch (error) {
-                    console.error('Error fetching group contacts:', error);
-                    setGroupContacts([]); // Set an empty array on error
-                }
-            } else {
-                setGroupContacts([]); // Reset contacts if no group is selected
+        const loadGroupContacts = async () => {
+            if (!selectedGroup) return;
+
+            try {
+                const contactsData = await fetchGroupContacts(selectedGroup);
+                setGroupContacts(contactsData);
+            } catch (error) {
+                console.error('Error fetching group contacts:', error);
+                setGroupContacts([]);
             }
         };
 
-        fetchGroupContacts();
+        loadGroupContacts();
     }, [selectedGroup]);
 
-    // Handle sending the message
+    // Define the handler to select a group
+    const handleGroupSelect = (groupId) => {
+        setSelectedGroup(groupId);  // Use the setSelectedGroup function here
+    };
+
     const handleSendMessage = async () => {
         if (!selectedGroup || !message.trim()) {
             alert('Please select a group and enter a message.');
@@ -96,50 +86,28 @@ function SendMessage() {
         }
 
         try {
-            // Prepare personalized messages for each contact
             const personalizedMessages = groupContacts.map(contact => {
-                const contactName = useCustomName ? contact.custom_name : ''; // Use custom name if selected
-                const finalMessage = `${selectedSalutation} ${contactName},\n\n${message.replace(/<[^>]*>/g, '')}`; // Remove HTML tags from the message
-                return {
-                    phone: contact.phone,
-                    message: finalMessage
-                };
+                const contactName = useCustomName ? contact.custom_name : contact.name;
+                const finalMessage = `${selectedSalutation} ${contactName},\n\n${message.replace(/<[^>]*>/g, '')}`;
+                return { phone: contact.phone, message: finalMessage };
             });
 
-            // Debug: Log the data to be sent
-            console.log('Sending personalized messages:', JSON.stringify(personalizedMessages, null, 2));
-
-            // Send each message to the corresponding contact using the Electron API
-            for (const contact of personalizedMessages) {
-                const response = await window.api.sendMessageToGroup({
-                    message: contact.message,
-                    contactIds: [contact.phone]
-                });
-
-                if (response && response.success) {
-                    console.log(`Message sent successfully to ${contact.phone}`);
-                } else {
-                    console.warn(`Failed to send message to ${contact.phone}:`, response.message || 'Unknown error');
-                }
+            const response = await sendMessageToGroup(selectedGroup, personalizedMessages);
+            if (response?.success) {
+                alert('Messages sent successfully!');
+            } else {
+                console.warn('Failed to send messages:', response?.message || 'Unknown error');
             }
-
-            alert('Messages sent successfully!');
         } catch (error) {
             console.error('Error sending messages:', error);
             alert(`Failed to send messages. Error: ${error.message}`);
         }
     };
 
-    // Handle group selection
-    const handleGroupSelect = (groupId) => {
-        setSelectedGroup(groupId);
-        console.log('Selected group updated:', groupId); // Log updated selected group
-    };
-
     return (
         <div className="send-message-container">
             {/* Group selector */}
-            <GroupView onGroupSelect={handleGroupSelect} selectedGroup={selectedGroup} />
+            <GroupView selectedGroup={selectedGroup} onGroupSelect={handleGroupSelect} />  {/* Pass handleGroupSelect */}
 
             {/* Message editor and salutation selection */}
             <div className="editor-container">
@@ -176,12 +144,9 @@ function SendMessage() {
                     editor={ClassicEditor}
                     data={message}
                     onChange={(event, editor) => {
-                        const data = editor.getData();
-                        setMessage(data); // Update message state
-                        console.log('Message content updated:', data); // Log updated message
+                        setMessage(editor.getData());
                     }}
                     config={{
-                        height: '300px',
                         toolbar: [
                             'heading', '|', 'bold', 'italic', 'link', 'bulletedList', 'numberedList', 'blockQuote', '|',
                             'undo', 'redo', 'alignment'

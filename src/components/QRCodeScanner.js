@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import LoadingSpinner from './LoadingSpinner1'; // Import your loading spinner
 import io from 'socket.io-client'; // Import Socket.IO
+const socket = io(`http://localhost:3001`);
+const BASE_URL = 'http://localhost:3001';
 
-const socket = io(`https://bulkwhatsapp.onrender.com`);
 
 function QRCodeScanner({ onLogin }) {
     const [qrCodeImage, setQrCodeImage] = useState(null);
@@ -16,7 +17,7 @@ function QRCodeScanner({ onLogin }) {
         try {
             // Use a timestamp to bypass cache and ensure the latest image is fetched
             const timestamp = new Date().getTime();
-            const imagePath = `uploads/qr-code?q=${timestamp}`; // QR code from storage
+            const imagePath = `${BASE_URL}/qrcode.png?q=${timestamp}`; // QR code from storage
 
             // Set the image path for display
             setQrCodeImage(imagePath);
