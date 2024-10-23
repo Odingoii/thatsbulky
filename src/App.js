@@ -8,7 +8,7 @@ import ContactSelection from './components/ContactSelection';
 import LoadingSpinner from './components/LoadingSpinner';
 import GroupDetail from './components/GroupDetail';
 import './App.css'; // Ensure this contains the global styles
-const BASE_URL = 'http://bulkwhatsappserver:10000;
+const BASE_URL = 'http://bulkwhatsappserver:10000';
 
 // Create a context for the app state
 const AppContext = createContext();
