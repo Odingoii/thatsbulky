@@ -1,4 +1,4 @@
-const BASE_URL = 'http://bulkwhatsappserver'; // Same as defined in the frontend
+const BASE_URL = 'http://bulkwhatsappserver:10000'; // Same as defined in the frontend
 
 // Fetch all contacts from the backend
 export const fetchContacts = async () => {
