@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const BASE_URL = 'http://bulkwhatsappserver:10000'; // Use the actual backend API URL here
+const BASE_URL = 'https://bulkwhatsapp-server.onrender.com'; // Use the actual backend API URL here
 
 // Fetch login status from the backend
 export const fetchLoginStatus = async () => {
