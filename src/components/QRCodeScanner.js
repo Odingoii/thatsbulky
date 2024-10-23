@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import LoadingSpinner from './LoadingSpinner1'; // Import your loading spinner
 import io from 'socket.io-client'; // Import Socket.IO
-const socket = io(`http://localhost:3001`);
-const BASE_URL = 'http://localhost:3001';
+const socket = io(`http://bulkwhatsappserver:10000`);
+const BASE_URL = 'http://bulkwhatsappserver:10000';
 
 
 function QRCodeScanner({ onLogin }) {
