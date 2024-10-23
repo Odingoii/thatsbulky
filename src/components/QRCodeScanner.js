@@ -1,9 +1,7 @@
+// QRCodeScanner.js
 import React, { useState, useEffect } from 'react';
 import LoadingSpinner from './LoadingSpinner1'; // Import your loading spinner
-import io from 'socket.io-client'; // Import Socket.IO
-const socket = io(`http://bulkwhatsappserver:10000`);
-const BASE_URL = 'http://bulkwhatsappserver:10000';
-
+import { fetchQRCode } from '../api'; // Import the fetchQRCode function
 
 function QRCodeScanner({ onLogin }) {
     const [qrCodeImage, setQrCodeImage] = useState(null);
@@ -15,15 +13,10 @@ function QRCodeScanner({ onLogin }) {
         setLoading(true);
         setStatus('Loading QR Code...');
         try {
-            // Use a timestamp to bypass cache and ensure the latest image is fetched
-            const timestamp = new Date().getTime();
-            const imagePath = `${BASE_URL}/qrcode.png?q=${timestamp}`; // QR code from storage
-
-            // Set the image path for display
+            const imagePath = await fetchQRCode(); // Fetch the QR code using the API function
             setQrCodeImage(imagePath);
             setStatus('QR Code Loaded');
         } catch (error) {
-            console.error('Error loading QR code:', error);
             setStatus('Failed to load QR Code');
         } finally {
             setLoading(false);
@@ -37,17 +30,9 @@ function QRCodeScanner({ onLogin }) {
         // Refresh the QR code image every 10 seconds to ensure it's updated
         const interval = setInterval(loadQrCode, 10000);
 
-        // Handle login success event from socket
-        socket.on('login-success', () => {
-            onLogin(); // Trigger login success callback
-        });
-
         // Cleanup on component unmount
-        return () => {
-            clearInterval(interval); // Clear interval to prevent memory leaks
-            socket.off('login-success');
-        };
-    }, [onLogin]);
+        return () => clearInterval(interval); // Clear interval to prevent memory leaks
+    }, []);
 
     return (
         <div className="qr-code-scanner">
