@@ -8,10 +8,12 @@ import ContactSelection from './components/ContactSelection';
 import LoadingSpinner from './components/LoadingSpinner';
 import GroupDetail from './components/GroupDetail';
 import './App.css'; // Ensure this contains the global styles
+const BASE_URL = 'https://bulkwhatsapp.onrender.com';
 
 // Create a context for the app state
 const AppContext = createContext();
 
+// Action types for the reducer
 export const ACTIONS = {
     SET_LOGGED_IN: 'SET_LOGGED_IN',
     SET_LOADING: 'SET_LOADING',
@@ -53,34 +55,24 @@ function App() {
     const fetchLoginStatus = async () => {
         try {
             // Fetch the status from your backend route (which reads from the .env file)
-            const response = await axios.get(`https://bulkwhatsapp.onrender.com/api/status`);
-            const { status, data } = response.data; // Focus mainly on the "status" field
+            const response = await axios.get(`${BASE_URL}/api/status`);
+            const { status} = response.data; // Focus on the "status" field
 
             if (!status) {
                 dispatch({ type: ACTIONS.SET_ACTIVE_PAGE, payload: 'loading' });
             } else {
                 switch (status) {
-                    case 'qr-code-updated':
+                    case 'loggedOut':
                         dispatch({ type: ACTIONS.SET_ACTIVE_PAGE, payload: 'qr-code-updated' });
                         break;
-                    case 'client-ready':
+                    case 'loggedIn':
                         dispatch({ type: ACTIONS.SET_ACTIVE_PAGE, payload: 'sendMessage' });
                         dispatch({ type: ACTIONS.SET_LOGGED_IN, payload: true });
                         dispatch({ type: ACTIONS.SET_LOADING, payload: false });
                         break;
-                    case 'login-status':
-                        if (data && data.loggedIn) {
-                            dispatch({ type: ACTIONS.SET_ACTIVE_PAGE, payload: 'sendMessage' });
-                            dispatch({ type: ACTIONS.SET_LOGGED_IN, payload: true });
-                            dispatch({ type: ACTIONS.SET_LOADING, payload: false });
-                        } else {
-                            dispatch({ type: ACTIONS.SET_ACTIVE_PAGE, payload: 'qr-code-updated' });
-                            dispatch({ type: ACTIONS.SET_LOGGED_IN, payload: false });
-                        }
-                        break;
                     default:
                         // Fallback case to display the QR code if an unknown status is received
-                        dispatch({ type: ACTIONS.SET_ACTIVE_PAGE, payload: 'qr-code-updated' });
+                        dispatch({ type: ACTIONS.SET_ACTIVE_PAGE, payload: 'loading' });
                         dispatch({ type: ACTIONS.SET_LOGGED_IN, payload: false });
                 }
             }
