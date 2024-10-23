@@ -46,7 +46,7 @@
     "start": "concurrently \"npm run start-react\" ",
     "start-react": "concurrently  \"react-scripts start\" \"node server.js\"",
     "start-server": "node server.js",
-    "build": "npm install && react-scripts build && npm run remove-build-paths",
+    "build": "npm install",
     "remove-build-paths": "replace '/build/' '' build/index.html",
     "serve": "concurrently \"npx serve -s build\" \"node server.js\"",
     "electron-start": "concurrently  \"npm run start\" \"electron .\"",
