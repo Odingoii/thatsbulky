@@ -169,3 +169,15 @@ export const sendMessageToGroup = async (groupId, messages) => {
       throw error;
   }
 };
+export const fetchQRCode = async () => {
+    try {
+        const timestamp = new Date().getTime();
+        const imagePath = `${BASE_URL}/qrcode.png?q=${timestamp}`; // QR code from storage
+        const response = await axios.get(imagePath, { responseType: 'blob' });
+        
+        return URL.createObjectURL(response.data); // Create a local URL for the blob
+    } catch (error) {
+        console.error('Error loading QR code:', error);
+        throw error; // Propagate the error
+    }
+};
