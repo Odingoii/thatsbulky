@@ -8,14 +8,16 @@ const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
 const multer = require('multer');
+const sqlite3 = require('sqlite3').verbose(); // Importing sqlite3
+const db = new sqlite3.Database(process.env.DB_PATH || 'contacts.db');
 
-dotenv.config(); // Load environment variables
+dotenv.config(); // Load initial environment variables
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
-        origin: 'http://localhost:3000',
+        origin: 'https://bulkwhatsapp.onrender.com:3000',
         methods: ['GET', 'POST'],
         credentials: true,
     },
@@ -23,11 +25,35 @@ const io = new Server(server, {
 
 // Middleware setup
 app.use(express.json());
-app.use(cors({ origin: 'http://localhost:3000', credentials: true }));
+app.use(cors({ origin: 'https://bulkwhatsapp.onrender.com:3000', credentials: true }));
 
-const PORT = process.env.PORT || 3001;
+const PORT = 3001;
 const QR_CODE_PATH = path.join(__dirname, 'uploads'); // Path to store QR code in 'uploads' folder
-const envPath = path.join('.env'); // Path to the .env file
+const envPath = path.join(__dirname, '.env'); // Path to the .env file
+
+// Clear the .env file
+const clearEnvFile = () => {
+    fs.writeFileSync(envPath, ''); // Clear entire .env file by overwriting it with an empty string
+    console.log('.env file cleared.');
+};
+
+// Function to update .env file by replacing its content completely
+const updateEnvFile = (key, value) => {
+    const newContent = `${key}="${value}"\n`; // Replace entire content with new key-value pair
+    fs.writeFileSync(envPath, newContent);
+    console.log(`.env file updated with: ${key}="${value}"`);
+};
+
+// Function to update login status in .env
+const updateLoginStatusInEnv = (status) => {
+    clearEnvFile(); // Clear file before updating
+    updateEnvFile('LOGIN_STATUS', status);
+};
+
+// Function to dynamically reload environment variables
+const reloadEnv = () => {
+    dotenv.config({ path: envPath }); // Reload .env file after every update
+};
 
 // Setup multer to handle file uploads
 const storage = multer.diskStorage({
@@ -39,30 +65,7 @@ const storage = multer.diskStorage({
     }
 });
 const upload = multer({ storage });
-
-// Function to update .env file
-const updateEnvFile = (key, value) => {
-    const envVars = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8').split('\n') : [];
-    let found = false;
-    const newEnvVars = envVars.map((line) => {
-        if (line.startsWith(`${key}=`)) {
-            found = true;
-            return `${key}="${value}"`; // Update existing key-value pair
-        }
-        return line;
-    });
-
-    if (!found) {
-        newEnvVars.push(`${key}="${value}"`); // Add new key-value pair if not found
-    }
-
-    fs.writeFileSync(envPath, newEnvVars.join('\n'));
-};
-
-// Function to update login status in .env
-const updateLoginStatusInEnv = (status) => {
-    updateEnvFile('LOGIN_STATUS', status);
-};
+app.use(express.static(QR_CODE_PATH)); // Serve static files from the QR_CODE_PATH directory
 
 // Handle QR code upload and store it in 'uploads' folder
 app.post('/api/qr-code', upload.single('qrCode'), (req, res) => {
@@ -76,25 +79,12 @@ app.post('/api/qr-code', upload.single('qrCode'), (req, res) => {
     res.status(200).json({ message: 'QR code saved successfully' });
 });
 
-// Serve the QR code from storage
-app.get('/api/qr-code', (req, res) => {
-    const filePath = path.join(QR_CODE_PATH, 'qrcode.png');
-
-    if (!fs.existsSync(filePath)) {
-        return res.status(404).json({ message: 'No QR code image found' });
-    }
-
-    res.sendFile(filePath, (err) => {
-        if (err) {
-            console.error('Error sending QR code:', err);
-            res.status(500).json({ message: 'Error serving the QR code image' });
-        }
-    });
-});
-
 // Singleton pattern for WhatsApp client
 let clientInstance;
 const getClient = () => {
+    // Clear .env file when getClient is invoked
+    clearEnvFile(); 
+
     if (!clientInstance) {
         clientInstance = new Client({
             authStrategy: new LocalAuth(),
@@ -109,6 +99,8 @@ const getClient = () => {
                     console.error('Error generating QR code:', err);
                 } else {
                     console.log('QR code saved to storage.');
+                    updateLoginStatusInEnv('loggedOut'); // Client is not logged in
+                    reloadEnv(); // Reload the .env file after update
                 }
             });
         });
@@ -116,19 +108,24 @@ const getClient = () => {
         // When client is ready (logged in)
         clientInstance.on('ready', () => {
             console.log('Client is ready!');
-            updateLoginStatusInEnv('loggedIn');
+            updateLoginStatusInEnv('loggedIn'); // Clear and update .env with loggedIn status
+            reloadEnv(); // Reload the .env file after update
+            initializeDatabase(); // Run initializeDatabase after login
+            saveContactsToDatabase();
         });
 
         // If authentication fails
         clientInstance.on('auth_failure', () => {
             console.log('Authentication failed. Please scan the QR code again.');
-            updateLoginStatusInEnv('notLoggedIn');
+            updateLoginStatusInEnv('loggedOut'); // Clear and update .env with notLoggedIn status
+            reloadEnv(); // Reload the .env file after update
         });
 
         // When the client gets disconnected
         clientInstance.on('disconnected', () => {
             console.log('Client has been logged out.');
-            updateLoginStatusInEnv('notLoggedIn');
+            updateLoginStatusInEnv('loggedOut'); // Clear and update .env with notLoggedIn status
+            reloadEnv(); // Reload the .env file after update
         });
 
         // Initialize the client
@@ -136,21 +133,27 @@ const getClient = () => {
     }
     return clientInstance;
 };
-
-// Function to get the login status from the .env file
+// Function to dynamically reload environment variables and get login status from .env
 const getLoginStatus = () => {
-    const status = process.env.STATUS;
-    const statusData = process.env.STATUS_DATA;
+    // Read the .env file directly from the file system
+    const envContent = fs.readFileSync(envPath, 'utf-8');
 
-    return { status, data: statusData ? JSON.parse(statusData) : null };
+    // Parse the content to find the LOGIN_STATUS key
+    const loginStatusLine = envContent.split('\n').find(line => line.startsWith('LOGIN_STATUS='));
+
+    // If LOGIN_STATUS is found, extract its value, otherwise set status to null
+    const status = loginStatusLine ? loginStatusLine.split('=')[1].replace(/"/g, '') : null;
+
+    return { status };
 };
 
-// Endpoint to fetch the login status from .env
+// Endpoint to fetch the login status from the backend
 app.get('/api/status', (req, res) => {
     try {
-        const loginStatus = getLoginStatus();
-        res.status(200).json(loginStatus); // Send the status data as JSON
+        const loginStatus = getLoginStatus(); // Fetch the updated status from the .env file
+        res.status(200).json(loginStatus); // Send the status as JSON
     } catch (error) {
+        console.error('Failed to fetch login status:', error); // Log the error for debugging
         res.status(500).json({ error: 'Failed to fetch login status' });
     }
 });
@@ -284,7 +287,6 @@ async function fetchGroupsWithContactCount() {
 // API Endpoints
 app.use(express.json()); // Ensure you can parse JSON bodies
 
-let latestQrCode = null; // Store the latest QR code in memory
 
 app.get('/api/groups-data', async (req, res) => {
     try {
@@ -662,6 +664,8 @@ app.post('/api/removecontact', async (req, res) => {
 });
 
 
+// Clear .env file on server start
+clearEnvFile();
 // Start the server
 const startServer = () => {
     server.listen(PORT, () => {
@@ -669,8 +673,15 @@ const startServer = () => {
 
     });
 };
+// Clear .env file before shutting down
+process.on('SIGINT', () => {
+    clearEnvFile();
+    console.log('Server shutting down, .env file cleared.');
+    process.exit();
+});
+
+
 
 // Ensure that the server is started
 startServer();
-sendStatusToApi();
 getClient(); // Initialize WhatsApp client
