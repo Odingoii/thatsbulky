@@ -42,36 +42,45 @@ function ContactSelection() {
         );
     };
 
-    const handleCreateGroup = async () => {
-        const trimmedGroupName = groupName.trim().toLowerCase();
+const handleCreateGroup = async () => {
+    setError('');  // Clear previous error messages
 
-        // Validate group name
-        if (!groupName.trim()) {
-            setError('Group name cannot be empty.');
-            return;
-        }
+    const trimmedGroupName = groupName.trim().toLowerCase();
 
-        // Check if group name already exists
-        if (existingGroups.includes(trimmedGroupName)) {
-            setError('Group name already exists. Please choose a different name.');
-            return;
-        }
+    // Validate group name
+    if (!groupName.trim()) {
+        setError('Group name cannot be empty.');
+        return;
+    }
 
-        // Validate contact selection
-        if (selectedContacts.length === 0) {
-            setError('Please select at least one contact.');
-            return;
-        }
+    // Check if group name already exists
+    if (existingGroups.includes(trimmedGroupName)) {
+        setError('Group name already exists. Please choose a different name.');
+        return;
+    }
 
-        try {
-            // Create the group using the API
-            await createGroup(groupName.trim(), selectedContacts);
-            dispatch({ type: 'SET_ACTIVE_PAGE', payload: 'groups' }); // Navigate to groups view
-        } catch (err) {
-            console.error('Error creating group:', err);
-            setError('Failed to create the group.');
-        }
-    };
+    // Validate contact selection
+    if (selectedContacts.length === 0) {
+        setError('Please select at least one contact.');
+        return;
+    }
+
+    try {
+        // Create the group using the API
+        await createGroup(groupName.trim(), selectedContacts);
+        setError('');  // Clear error after successful group creation
+
+        // Clear input fields and selections after success
+        setGroupName('');
+        setSelectedContacts([]);
+        
+        dispatch({ type: 'SET_ACTIVE_PAGE', payload: 'groups' }); // Navigate to groups view
+    } catch (err) {
+        console.error('Error creating group:', err);
+        setError('Failed to create the group.');
+    }
+};
+
 
     // Filter contacts based on search query
     const filteredContacts = contacts.filter(contact => 
