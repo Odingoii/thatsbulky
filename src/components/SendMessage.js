@@ -124,12 +124,6 @@ const handleSendMessage = async () => {
     }
 };
 
-// Handle group selection with logging
-const handleGroupSelect = (groupId) => {
-    setSelectedGroup(groupId);
-    console.log('Selected group updated:', groupId); // Log updated selected group
-};
-
 
     return (
         <div className="send-message-container">
