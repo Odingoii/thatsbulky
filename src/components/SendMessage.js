@@ -79,30 +79,57 @@ function SendMessage() {
         setSelectedGroup(groupId);  // Use the setSelectedGroup function here
     };
 
-    const handleSendMessage = async () => {
-        if (!selectedGroup || !message.trim()) {
-            alert('Please select a group and enter a message.');
-            return;
-        }
+const handleSendMessage = async () => {
+    if (!selectedGroup || !message.trim()) {
+        alert('Please select a group and enter a message.');
+        return;
+    }
 
-        try {
-            const personalizedMessages = groupContacts.map(contact => {
-                const contactName = useCustomName ? contact.custom_name : contact.name;
-                const finalMessage = `${selectedSalutation} ${contactName},\n\n${message.replace(/<[^>]*>/g, '')}`;
-                return { phone: contact.phone, message: finalMessage };
-            });
+    try {
+        // Prepare personalized messages for each contact
+        const personalizedMessages = groupContacts.map(contact => {
+            const contactName = useCustomName ? contact.custom_name : ''; // Use custom name if selected
+            const finalMessage = `${selectedSalutation} ${contactName},\n\n${message.replace(/<[^>]*>/g, '')}`; // Remove HTML tags from the message
+            return {
+                phone: contact.phone,
+                message: finalMessage
+            };
+        });
 
-            const response = await sendMessageToGroup(selectedGroup, personalizedMessages);
-            if (response?.success) {
-                alert('Messages sent successfully!');
-            } else {
-                console.warn('Failed to send messages:', response?.message || 'Unknown error');
+        // Debug: Log the data to be sent
+        console.log('Sending personalized messages:', JSON.stringify(personalizedMessages, null, 2));
+
+        // Send each message to the corresponding contact using the existing API structure
+        for (const contact of personalizedMessages) {
+            try {
+                const response = await sendMessageToGroup(selectedGroup, [{
+                    phone: contact.phone,
+                    message: contact.message
+                }]);
+
+                if (response && response.success) {
+                    console.log(`Message sent successfully to ${contact.phone}`);
+                } else {
+                    console.warn(`Failed to send message to ${contact.phone}:`, response.message || 'Unknown error');
+                }
+            } catch (error) {
+                console.error(`Error sending message to ${contact.phone}:`, error);
             }
-        } catch (error) {
-            console.error('Error sending messages:', error);
-            alert(`Failed to send messages. Error: ${error.message}`);
         }
-    };
+
+        alert('Messages sent successfully!');
+    } catch (error) {
+        console.error('Error sending messages:', error);
+        alert(`Failed to send messages. Error: ${error.message}`);
+    }
+};
+
+// Handle group selection with logging
+const handleGroupSelect = (groupId) => {
+    setSelectedGroup(groupId);
+    console.log('Selected group updated:', groupId); // Log updated selected group
+};
+
 
     return (
         <div className="send-message-container">
