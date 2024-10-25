@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './ContactSelection.css';
 import useAppContext from '../App';
-import { fetchContacts, fetchGroups, createGroup } from '../api';  // Import API service functions
+import { fetchContacts, fetchGroups, createGroup } from '../api'; // Import API service functions
 
 function ContactSelection() {
     const { dispatch } = useAppContext(); // Get global state dispatch
@@ -35,55 +35,55 @@ function ContactSelection() {
 
     // Handle contact selection/deselection
     const handleContactSelection = (contactId) => {
-        setSelectedContacts((prevSelected) => 
-            prevSelected.includes(contactId) 
-                ? prevSelected.filter(id => id !== contactId) 
+        setSelectedContacts((prevSelected) =>
+            prevSelected.includes(contactId)
+                ? prevSelected.filter(id => id !== contactId)
                 : [...prevSelected, contactId]
         );
     };
 
-const handleCreateGroup = async () => {
-    setError('');  // Clear previous error messages
+    // Handle group creation
+    const handleCreateGroup = async () => {
+        setError(''); // Clear previous error messages
 
-    const trimmedGroupName = groupName.trim().toLowerCase();
+        const trimmedGroupName = groupName.trim().toLowerCase();
 
-    // Validate group name
-    if (!groupName.trim()) {
-        setError('Group name cannot be empty.');
-        return;
-    }
+        // Validate group name
+        if (!groupName.trim()) {
+            setError('Group name cannot be empty.');
+            return;
+        }
 
-    // Check if group name already exists
-    if (existingGroups.includes(trimmedGroupName)) {
-        setError('Group name already exists. Please choose a different name.');
-        return;
-    }
+        // Check if group name already exists
+        if (existingGroups.includes(trimmedGroupName)) {
+            setError('Group name already exists. Please choose a different name.');
+            return;
+        }
 
-    // Validate contact selection
-    if (selectedContacts.length === 0) {
-        setError('Please select at least one contact.');
-        return;
-    }
+        // Validate contact selection
+        if (selectedContacts.length === 0) {
+            setError('Please select at least one contact.');
+            return;
+        }
 
-    try {
-        // Create the group using the API
-        await createGroup(groupName.trim(), selectedContacts);
-        setError('');  // Clear error after successful group creation
+        try {
+            // Create the group using the API
+            await createGroup(groupName.trim(), selectedContacts);
 
-        // Clear input fields and selections after success
-        setGroupName('');
-        setSelectedContacts([]);
-        
-        dispatch({ type: 'SET_ACTIVE_PAGE', payload: 'groups' }); // Navigate to groups view
-    } catch (err) {
-        console.error('Error creating group:', err);
-        setError('Failed to create the group.');
-    }
-};
+            // Clear error and input fields on successful group creation
+            setError('');
+            setGroupName('');
+            setSelectedContacts([]);
 
+            dispatch({ type: 'SET_ACTIVE_PAGE', payload: 'groups' }); // Navigate to groups view
+        } catch (err) {
+            console.error('Error creating group:', err);
+            setError('Failed to create the group.');
+        }
+    };
 
     // Filter contacts based on search query
-    const filteredContacts = contacts.filter(contact => 
+    const filteredContacts = contacts.filter(contact =>
         contact.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
