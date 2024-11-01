@@ -1,5 +1,5 @@
 import React, { useReducer, useEffect, useContext, createContext } from 'react';
-import { fetchLoginStatus } from './api'; // Import the API call from api.js
+import axios from 'axios';
 import QRCodeScanner from './components/QRCodeScanner';
 import Sidebar from './components/Sidebar';
 import GroupView from './components/GroupView';
@@ -7,7 +7,11 @@ import SendMessage from './components/SendMessage';
 import ContactSelection from './components/ContactSelection';
 import LoadingSpinner from './components/LoadingSpinner';
 import GroupDetail from './components/GroupDetail';
-import './App.css'; // Ensure this contains the global styles
+import Signup from './components/Signup';
+import Login from './components/Login';
+import './App.css';
+
+const BASE_URL = 'https://bulkwhatsapp.onrender.com';
 
 // Create a context for the app state
 const AppContext = createContext();
@@ -18,6 +22,7 @@ export const ACTIONS = {
     SET_LOADING: 'SET_LOADING',
     SET_ACTIVE_PAGE: 'SET_ACTIVE_PAGE',
     SET_REDIRECT: 'SET_REDIRECT',
+    SET_SHOW_LOGIN: 'SET_SHOW_LOGIN',
 };
 
 // Initial state for the reducer
@@ -26,6 +31,7 @@ const initialState = {
     loading: true,
     activePage: 'loading',
     redirectToSendMessage: false,
+    showLogin: true, // Controls whether to show login or signup
 };
 
 // Reducer function to manage state transitions
@@ -39,6 +45,8 @@ function appReducer(state, action) {
             return { ...state, activePage: action.payload, loading: false };
         case ACTIONS.SET_REDIRECT:
             return { ...state, redirectToSendMessage: action.payload };
+        case ACTIONS.SET_SHOW_LOGIN:
+            return { ...state, showLogin: action.payload };
         default:
             return state;
     }
@@ -51,10 +59,10 @@ function App() {
     const [state, dispatch] = useReducer(appReducer, initialState);
 
     // Function to fetch login status from the .env file through the backend
-    const handleLoginStatus = async () => {
+    const fetchLoginStatus = async () => {
         try {
-            const statusData = await fetchLoginStatus();
-            const { status } = statusData; // Focus on the "status" field
+            const response = await axios.get(`${BASE_URL}/api/status`);
+            const { status } = response.data;
 
             if (!status) {
                 dispatch({ type: ACTIONS.SET_ACTIVE_PAGE, payload: 'loading' });
@@ -79,10 +87,9 @@ function App() {
         }
     };
 
-    // Poll the backend at regular intervals to fetch login status
     useEffect(() => {
         const pollLoginStatus = () => {
-            handleLoginStatus();
+            fetchLoginStatus();
         };
 
         if (!state.loggedIn) {
@@ -95,16 +102,41 @@ function App() {
         <AppContext.Provider value={{ state, dispatch }}>
             <div className="app-frame">
                 {state.loading && <LoadingSpinner />}
-                {state.activePage === 'qr-code-updated' && <QRCodeScanner />}
-                <div className={`content-wrapper ${state.loading || state.activePage === 'qr-code-updated' ? 'blurred' : ''}`}>
-                    <Sidebar disabled={state.loading} />
-                    <div className="main-content">
-                        {state.activePage === 'sendMessage' && <SendMessage />}
-                        {state.activePage === 'groups' && <GroupView />}
-                        {state.activePage === 'createGroup' && <ContactSelection />}
-                        {state.activePage === 'groupDetail' && <GroupDetail groupId={state.redirectToSendMessage} />}
+                
+                {/* Show Signup or Login if user is not logged in */}
+                {!state.loggedIn && (
+                    <div className="auth-container">
+                        {state.showLogin ? (
+                            <Login />
+                        ) : (
+                            <Signup />
+                        )}
+                        {/* Toggle between Signup and Login */}
+                        <button 
+                            className="auth-toggle-btn" 
+                            onClick={() => dispatch({ type: ACTIONS.SET_SHOW_LOGIN, payload: !state.showLogin })}
+                        >
+                            {state.showLogin ? 'Create an Account' : 'Already have an account? Log in'}
+                        </button>
+
                     </div>
-                </div>
+                )}
+
+                {/* Main App Content */}
+                {state.loggedIn && (
+                    <>
+                        {state.activePage === 'qr-code-updated' && <QRCodeScanner />}
+                        <div className={`content-wrapper ${state.loading || state.activePage === 'qr-code-updated' ? 'blurred' : ''}`}>
+                            <Sidebar disabled={state.loading} />
+                            <div className="main-content">
+                                {state.activePage === 'sendMessage' && <SendMessage />}
+                                {state.activePage === 'groups' && <GroupView />}
+                                {state.activePage === 'createGroup' && <ContactSelection />}
+                                {state.activePage === 'groupDetail' && <GroupDetail groupId={state.redirectToSendMessage} />}
+                            </div>
+                        </div>
+                    </>
+                )}
             </div>
         </AppContext.Provider>
     );
