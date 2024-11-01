@@ -140,12 +140,11 @@ const getClient = () => {
             try {
                 await qrcode.toFile(path.join(QR_CODE_PATH, 'qrcode.png'), qr);
                 loginStatus = 'loggedOut';
-                await updateEnvFile(LOGIN_STATUS_KEY, loginStatus);
+                updateLoginStatus(loginStatus); // Update status directly
                 console.log('QR Code saved to folder');
             } catch (error) {
                 console.error('Error saving QR code:', error);
             }
-            updateLoginStatus();
             reloadEnv();
         });
 
@@ -162,9 +161,8 @@ const getClient = () => {
                 });
 
                 loginStatus = 'loggedIn';
-                updateLoginStatus();
+                updateLoginStatus(loginStatus); // Update status directly
                 reloadEnv();
-                await updateEnvFile(LOGIN_STATUS_KEY, loginStatus);
                 initializeDatabase();
                 saveContactsToDatabase();
                 console.log('User logged in Successfully');
@@ -176,18 +174,15 @@ const getClient = () => {
         clientInstance.on('disconnected', async (reason) => {
             console.log(`Client disconnected: ${reason}`);
             loginStatus = 'loggedOut';
-            await updateEnvFile(LOGIN_STATUS_KEY, loginStatus);
-            handleReconnection(); // Attempt reconnection logic should be implemented here
-            console.log('Client Disconnected');
-            updateLoginStatus();
+            updateLoginStatus(loginStatus); // Update status directly
+            handleReconnection();
             reloadEnv();
         });
 
         clientInstance.on('auth_failure', async () => {
             loginStatus = 'loggedOut';
-            await updateEnvFile(LOGIN_STATUS_KEY, loginStatus);
+            updateLoginStatus(loginStatus); // Update status directly
             console.log('Authentication Error');
-            updateLoginStatus();
             reloadEnv();
         });
 
