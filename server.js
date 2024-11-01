@@ -35,7 +35,7 @@ const authenticateUser = (req, res, next) => {
 
 // Middleware setup
 app.use(express.json());
-app.use(cors({ origin: 'https://bulkwhatsapp.onrender.com', credentials: true }));
+app.use(cors({ origin: 'http://localhost:3000', credentials: true }));
 app.use((req, res, next) => {
     dotenv.config();
     next();
