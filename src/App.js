@@ -11,7 +11,7 @@ import Signup from './components/Signup';
 import Login from './components/Login';
 import './App.css';
 
-const BASE_URL = 'https://bulkwhatsapp.onrender.com';
+const BASE_URL = 'http://35.208.247.59:3001';
 
 // Create a context for the app state
 const AppContext = createContext();
