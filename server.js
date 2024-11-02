@@ -302,7 +302,7 @@ app.use(express.json()); // Ensure you can parse JSON bodies
 
 
 // User registration endpoint
-app.post('/api/register',authenticateUser, async (req, res) => {
+app.post('/api/register',async (req, res) => {
     const { username, password } = req.body;
 
     // Check if user already exists
