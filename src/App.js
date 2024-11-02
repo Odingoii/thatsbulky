@@ -1,4 +1,5 @@
 import React, { useReducer, useEffect, useContext, createContext } from 'react';
+import { BrowserRouter as Router, Route, Switch, Redirect } from 'react-router-dom';
 import axios from 'axios';
 import QRCodeScanner from './components/QRCodeScanner';
 import Sidebar from './components/Sidebar';
@@ -11,7 +12,8 @@ import Signup from './components/Signup';
 import Login from './components/Login';
 import './App.css';
 
-const BASE_URL = 'http://35.208.247.59:3001';
+const BASE_URL = 'https://thatsbulky.com:3000';
+
 
 // Create a context for the app state
 const AppContext = createContext();
@@ -58,7 +60,7 @@ export const useAppContext = () => useContext(AppContext);
 function App() {
     const [state, dispatch] = useReducer(appReducer, initialState);
 
-    // Function to fetch login status from the .env file through the backend
+    // Function to fetch login status and update app state
     const fetchLoginStatus = async () => {
         try {
             const response = await axios.get(`${BASE_URL}/api/status`);
@@ -100,46 +102,49 @@ function App() {
 
     return (
         <AppContext.Provider value={{ state, dispatch }}>
-            <div className="app-frame">
-                {state.loading && <LoadingSpinner />}
-                
-                {/* Show Signup or Login if user is not logged in */}
-                {!state.loggedIn && (
-                    <div className="auth-container">
-                        {state.showLogin ? (
-                            <Login />
-                        ) : (
-                            <Signup />
-                        )}
-                        {/* Toggle between Signup and Login */}
-                        <button 
-                            className="auth-toggle-btn" 
-                            onClick={() => dispatch({ type: ACTIONS.SET_SHOW_LOGIN, payload: !state.showLogin })}
-                        >
-                            {state.showLogin ? 'Create an Account' : 'Already have an account? Log in'}
-                        </button>
+            <Router>
+                <div className="app-frame">
+                    {state.loading && <LoadingSpinner />}
 
-                    </div>
-                )}
-
-                {/* Main App Content */}
-                {state.loggedIn && (
-                    <>
-                        {state.activePage === 'qr-code-updated' && <QRCodeScanner />}
-                        <div className={`content-wrapper ${state.loading || state.activePage === 'qr-code-updated' ? 'blurred' : ''}`}>
-                            <Sidebar disabled={state.loading} />
-                            <div className="main-content">
-                                {state.activePage === 'sendMessage' && <SendMessage />}
-                                {state.activePage === 'groups' && <GroupView />}
-                                {state.activePage === 'createGroup' && <ContactSelection />}
-                                {state.activePage === 'groupDetail' && <GroupDetail groupId={state.redirectToSendMessage} />}
-                            </div>
+                    {/* Show Signup or Login if user is not logged in */}
+                    {!state.loggedIn && (
+                        <div className="auth-container">
+                            {state.showLogin ? (
+                                <Login />
+                            ) : (
+                                <Signup />
+                            )}
+                            <button 
+                                className="auth-toggle-btn" 
+                                onClick={() => dispatch({ type: ACTIONS.SET_SHOW_LOGIN, payload: !state.showLogin })}
+                            >
+                                {state.showLogin ? 'Create an Account' : 'Already have an account? Log in'}
+                            </button>
                         </div>
-                    </>
-                )}
-            </div>
+                    )}
+
+                    {/* Main App Content with Routing */}
+                    {state.loggedIn && (
+                        <Switch>
+                            <Route path={["/home", "/"]} exact>
+                                <>
+                                    <QRCodeScanner />
+                                    <div className={`content-wrapper ${state.loading ? 'blurred' : ''}`}>
+                                        <Sidebar disabled={state.loading} />
+                                        <div className="main-content">
+                                            <SendMessage />
+                                            <GroupView />
+                                            <ContactSelection />
+                                            <GroupDetail groupId={state.redirectToSendMessage} />
+                                        </div>
+                                    </div>
+                                </>
+                            </Route>
+                            <Redirect from="/" to="/home" />
+                        </Switch>
+                    )}
+                </div>
+            </Router>
         </AppContext.Provider>
     );
 }
-
-export default App;

@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const BASE_URL = 'http://35.208.247.59:3001'; // Use the actual backend API URL here
+const BASE_URL = 'https://thatsbulky.com'; // Use the actual backend API URL here
 
 // Fetch login status from the backend
 export const fetchLoginStatus = async () => {

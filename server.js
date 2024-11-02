@@ -14,7 +14,7 @@ const LOGIN_STATUS_KEY = 'LOGIN_STATUS';
 let loginStatus = 'loggedOut';
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const SECRET_KEY = process.env.SECRET_KEY || '5pDVxosvPPbyM2eHuJTXMGhSa1JFphpqZFD63Rrpvss=';
+const SECRET_KEY = process.env.SECRET_KEY;
 
 
 dotenv.config(); // Load initial environment variables
@@ -35,7 +35,7 @@ const authenticateUser = (req, res, next) => {
 
 // Middleware setup
 app.use(express.json());
-app.use(cors({ origin: 'http://35.208.247.59:3000', credentials: true }));
+app.use(cors({ origin: 'const BASE_URL = `https://thatsbulky.com;`', credentials: true }));
 app.use((req, res, next) => {
     dotenv.config();
     next();
