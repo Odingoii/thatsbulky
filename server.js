@@ -14,7 +14,7 @@ const LOGIN_STATUS_KEY = 'LOGIN_STATUS';
 let loginStatus = 'loggedOut';
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const SECRET_KEY = process.env.SECRET_KEY;
+const SECRET_KEY = process.env.SECRET_KEY ||'5pDVxosvPPbyM2eHuJTXMGhSa1JFphpqZFD63Rrpvss=';
 
 
 dotenv.config(); // Load initial environment variables
