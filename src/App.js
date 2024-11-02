@@ -1,5 +1,6 @@
 import React, { useReducer, useEffect, useContext, createContext } from 'react';
 import { BrowserRouter as Router, Route, Switch, Redirect } from 'react-router-dom';
+import { fetchLoginStatus } from './api'; // Import the API call from api.js
 import axios from 'axios';
 import QRCodeScanner from './components/QRCodeScanner';
 import Sidebar from './components/Sidebar';
@@ -11,9 +12,6 @@ import GroupDetail from './components/GroupDetail';
 import Signup from './components/Signup';
 import Login from './components/Login';
 import './App.css';
-
-const BASE_URL = 'https://thatsbulky.com:3000';
-
 
 // Create a context for the app state
 const AppContext = createContext();
@@ -63,8 +61,6 @@ function App() {
     // Function to fetch login status and update app state
     const fetchLoginStatus = async () => {
         try {
-            const response = await axios.get(`${BASE_URL}/api/status`);
-            const { status } = response.data;
 
             if (!status) {
                 dispatch({ type: ACTIONS.SET_ACTIVE_PAGE, payload: 'loading' });
