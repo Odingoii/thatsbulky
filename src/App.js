@@ -1,7 +1,6 @@
 import React, { useReducer, useEffect, useContext, createContext } from 'react';
-import { BrowserRouter as Router, Route, Switch, Redirect } from 'react-router-dom';
-import { fetchLoginStatus } from './api'; // Import the API call from api.js
-import axios from 'axios';
+import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom'; // Updated imports
+import { fetchLoginStatus as fetchLoginStatusApi } from './api'; // Ensure this imports your actual API function
 import QRCodeScanner from './components/QRCodeScanner';
 import Sidebar from './components/Sidebar';
 import GroupView from './components/GroupView';
@@ -61,6 +60,8 @@ function App() {
     // Function to fetch login status and update app state
     const fetchLoginStatus = async () => {
         try {
+            const response = await fetchLoginStatusApi(); // Call your API here
+            const { status } = response.data; // Adjust based on your API response structure
 
             if (!status) {
                 dispatch({ type: ACTIONS.SET_ACTIVE_PAGE, payload: 'loading' });
@@ -121,10 +122,10 @@ function App() {
 
                     {/* Main App Content with Routing */}
                     {state.loggedIn && (
-                        <Switch>
-                            <Route path={["/home", "/"]} exact>
+                        <Routes>
+                            <Route path="/" element={<QRCodeScanner />} />
+                            <Route path="/home" element={
                                 <>
-                                    <QRCodeScanner />
                                     <div className={`content-wrapper ${state.loading ? 'blurred' : ''}`}>
                                         <Sidebar disabled={state.loading} />
                                         <div className="main-content">
@@ -135,12 +136,14 @@ function App() {
                                         </div>
                                     </div>
                                 </>
-                            </Route>
-                            <Redirect from="/" to="/home" />
-                        </Switch>
+                            } />
+                            <Route path="*" element={<Navigate to="/home" />} /> {/* Redirect to home if no match */}
+                        </Routes>
                     )}
                 </div>
             </Router>
         </AppContext.Provider>
     );
 }
+
+export default App;
