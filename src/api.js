@@ -6,10 +6,19 @@ const BASE_URL = 'https://thatsbulky.com'; // Use the actual backend API URL her
 export const fetchLoginStatus = async () => {
     try {
         const response = await axios.get(`${BASE_URL}/api/status`);
-        return response.data;
+        return response.data; // Returns the response data directly
     } catch (error) {
         console.error('Error fetching login status:', error);
-        throw error;
+        throw error; // Propagate the error for handling in the caller
+    }
+};
+export const registerUser = async (username, password) => {
+    try {
+        const response = await axios.post(`${BASE_URL}/api/register`, { username, password });
+        return response.data; // Returns the response data directly
+    } catch (error) {
+        console.error('Error during registration:', error);
+        throw error; // Propagate the error for handling in the caller
     }
 };
 
