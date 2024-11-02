@@ -1,99 +1,65 @@
 const fs = require('fs');
 const path = require('path');
-const { Client} = require('whatsapp-web.js');
+const { Client } = require('whatsapp-web.js');
 const qrcode = require('qrcode');
 const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const http = require('http');
-const puppeteer = require('puppeteer');
 const multer = require('multer');
-const sqlite3 = require('sqlite3').verbose(); // Importing sqlite3
-const db = new sqlite3.Database(process.env.DB_PATH || 'contacts.db');
-const LOGIN_STATUS_KEY = 'LOGIN_STATUS';
-let loginStatus = 'loggedOut';
+const sqlite3 = require('sqlite3').verbose(); 
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const SECRET_KEY = process.env.SECRET_KEY ||'5pDVxosvPPbyM2eHuJTXMGhSa1JFphpqZFD63Rrpvss=';
-
 
 dotenv.config(); // Load initial environment variables
 
 const app = express();
 const server = http.createServer(app);
+const db = new sqlite3.Database(process.env.DB_PATH || 'contacts.db');
+const LOGIN_STATUS_KEY = 'LOGIN_STATUS';
+let loginStatus = 'loggedOut';
+const SECRET_KEY = process.env.SECRET_KEY;
+
 const authenticateUser = (req, res, next) => {
     const token = req.headers.authorization && req.headers.authorization.split(' ')[1];
     if (!token) return res.status(403).json({ error: 'Token is required' });
 
     jwt.verify(token, SECRET_KEY, (err, user) => {
         if (err) return res.status(401).json({ error: 'Invalid token' });
-        req.user = user; // Attach user object with dbPath to the request
+        req.user = user; 
         next();
     });
 };
 
-
 // Middleware setup
 app.use(express.json());
-app.use(cors({ origin: 'const BASE_URL = `https://thatsbulky.com;`', credentials: true }));
-app.use((req, res, next) => {
-    dotenv.config();
-    next();
-});
+app.use(cors({ origin: 'https://thatsbulky.com', credentials: true }));
+
 const PORT = 3001;
-const QR_CODE_PATH = path.join(__dirname, 'uploads'); // Path to store QR code in 'uploads' folder
-const envPath = path.join(__dirname, '.env'); // Path to the .env file
+const QR_CODE_PATH = path.join(__dirname, 'uploads'); 
+const envPath = path.join(__dirname, '.env'); 
 
-
-// Function to update the login status in .env without clearing the entire file
 const updateLoginStatus = (status) => {
-    // Load existing environment variables
-    const envContent = fs.readFileSync(envPath, 'utf8');
-
-    // Split the content into lines
-    const lines = envContent.split('\n');
-
-    // Update or add the LOGIN_STATUS line
-    const updatedLines = lines.map(line => {
-        if (line.startsWith('LOGIN_STATUS=')) {
-            return `LOGIN_STATUS="${status}"`; // Update the existing LOGIN_STATUS
-        }
-        return line; // Keep the existing line
-    });
-
-    // If LOGIN_STATUS was not found, add it to the end
-    if (!updatedLines.some(line => line.startsWith('LOGIN_STATUS='))) {
-        updatedLines.push(`LOGIN_STATUS="${status}"`);
-    }
-
-    // Join the lines back into a single string
-    const newContent = updatedLines.join('\n');
-
-    // Write the new content back to the .env file
-    fs.writeFileSync(envPath, newContent);
-    console.log(`.env file updated with: LOGIN_STATUS="${status}"`);
+    // Store login status in memory instead of .env file
+    loginStatus = status;
+    console.log(`Login status updated to: ${status}`);
 };
 
-
-
-// Function to dynamically reload environment variables
 const reloadEnv = () => {
-    dotenv.config({ path: envPath }); // Reload .env file after every update
+    dotenv.config({ path: envPath });
 };
 
-// Setup multer to handle file uploads
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, QR_CODE_PATH); // Save to 'uploads' directory
+        cb(null, QR_CODE_PATH);
     },
     filename: (req, file, cb) => {
-        cb(null, 'qrcode.png'); // Save QR code as 'qrcode.png'
+        cb(null, 'qrcode.png');
     }
 });
 const upload = multer({ storage });
-app.use(express.static(QR_CODE_PATH)); // Serve static files from the QR_CODE_PATH directory
+app.use(express.static(QR_CODE_PATH));
 
-// Handle QR code upload and store it in 'uploads' folder
 app.post('/api/qr-code', upload.single('qrCode'), (req, res) => {
     const file = req.file;
 
@@ -105,21 +71,20 @@ app.post('/api/qr-code', upload.single('qrCode'), (req, res) => {
     res.status(200).json({ message: 'QR code saved successfully' });
 });
 
-// Singleton pattern for WhatsApp client
 let clientInstance;
 let isReconnecting = false;
 
-// Reinitialize WhatsApp Client when necessary
 const handleReconnection = () => {
     if (!isReconnecting) {
         isReconnecting = true;
         setTimeout(() => {
             clientInstance = null;
-            getClient(); // Reinitialize
+            getClient();
             isReconnecting = false;
-        }, 5000); // Adjust delay as needed
+        }, 5000);
     }
 };
+
 const getClient = () => {
     updateLoginStatus(loginStatus);
     reloadEnv();
@@ -139,18 +104,15 @@ const getClient = () => {
         clientInstance.on('qr', async (qr) => {
             try {
                 await qrcode.toFile(path.join(QR_CODE_PATH, 'qrcode.png'), qr);
-                loginStatus = 'loggedOut';
-                updateLoginStatus(loginStatus); // Update status directly
+                updateLoginStatus('loggedOut');
                 console.log('QR Code saved to folder');
             } catch (error) {
                 console.error('Error saving QR code:', error);
             }
-            reloadEnv();
         });
 
         clientInstance.on('ready', async () => {
             try {
-                // Delete the QR code image
                 const qrCodePath = path.join(QR_CODE_PATH, 'qrcode.png');
                 fs.unlink(qrCodePath, (err) => {
                     if (err) {
@@ -160,12 +122,10 @@ const getClient = () => {
                     }
                 });
 
-                loginStatus = 'loggedIn';
-                updateLoginStatus(loginStatus); // Update status directly
-                reloadEnv();
+                updateLoginStatus('loggedIn');
                 initializeDatabase();
                 saveContactsToDatabase();
-                console.log('User logged in Successfully');
+                console.log('User logged in successfully');
             } catch (error) {
                 console.error('Error during login initialization:', error);
             }
@@ -173,17 +133,13 @@ const getClient = () => {
 
         clientInstance.on('disconnected', async (reason) => {
             console.log(`Client disconnected: ${reason}`);
-            loginStatus = 'loggedOut';
-            updateLoginStatus(loginStatus); // Update status directly
+            updateLoginStatus('loggedOut');
             handleReconnection();
-            reloadEnv();
         });
 
         clientInstance.on('auth_failure', async () => {
-            loginStatus = 'loggedOut';
-            updateLoginStatus(loginStatus); // Update status directly
+            updateLoginStatus('loggedOut');
             console.log('Authentication Error');
-            reloadEnv();
         });
 
         clientInstance.initialize();
@@ -191,38 +147,16 @@ const getClient = () => {
     return clientInstance;
 };
 
-
-// Endpoint to get the login status
+// Consolidated endpoint to get the login status
 app.get('/api/status', (req, res) => {
-    reloadEnv();
-    res.status(200).json({ status: loginStatus });
-    
-});
-// Function to dynamically reload environment variables and get login status from .env
-const getLoginStatus = () => {
-    // Read the .env file directly from the file system
-    const envContent = fs.readFileSync(envPath, 'utf-8');
-
-    // Parse the content to find the LOGIN_STATUS key
-    const loginStatusLine = envContent.split('\n').find(line => line.startsWith('LOGIN_STATUS='));
-
-    // If LOGIN_STATUS is found, extract its value, otherwise set status to null
-    const status = loginStatusLine ? loginStatusLine.split('=')[1].replace(/"/g, '') : null;
-
-    return { status };
-};
-
-// Endpoint to fetch the login status from the backend
-app.get('/api/status', (req, res) => {
-    reloadEnv();
     try {
-        const loginStatus = getLoginStatus(); // Fetch the updated status from the .env file
-        res.status(200).json(loginStatus); // Send the status as JSON
+        res.status(200).json({ status: loginStatus });
     } catch (error) {
-        console.error('Failed to fetch login status:', error); // Log the error for debugging
+        console.error('Failed to fetch login status:', error);
         res.status(500).json({ error: 'Failed to fetch login status' });
     }
 });
+
 
 async function initializeDatabase() {
     const db = new sqlite3.Database(process.env.DB_PATH || 'contacts.db', (err) => {
