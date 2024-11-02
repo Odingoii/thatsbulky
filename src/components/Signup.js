@@ -42,5 +42,8 @@ function Signup() {
         </div>
     );
 }
-
+const handleSubmit = async () => {
+    // registration logic...
+    onSuccess(); // Call this to switch to login after successful signup
+}
 export default Signup;
