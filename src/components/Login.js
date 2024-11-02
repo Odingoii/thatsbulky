@@ -1,6 +1,6 @@
 // Login.js
 import React, { useState } from 'react';
-import axios from 'axios';
+import { loginUser } from '../api'; // Import the API call from api.js
 import './Auth.css';
 
 function Login() {
@@ -11,8 +11,8 @@ function Login() {
     const handleLogin = async (e) => {
         e.preventDefault();
         try {
-            const response = await axios.post('/api/login', { username, password });
-            const token = response.data.token;
+            const response = await loginUser(username, password); // Use the API function
+            const token = response.token; // Extract the token from response
             localStorage.setItem('token', token); // Store the token in local storage
             setMessage('Login successful');
         } catch (error) {
