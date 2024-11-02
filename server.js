@@ -16,10 +16,27 @@ dotenv.config(); // Load initial environment variables
 const app = express();
 const server = http.createServer(app);
 const db = new sqlite3.Database(process.env.DB_PATH || 'contacts.db');
-const LOGIN_STATUS_KEY = 'LOGIN_STATUS';
-let loginStatus = 'loggedOut';
 const SECRET_KEY = process.env.SECRET_KEY;
 
+const clients = {}; // Store client instances by token
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const userToken = req.headers.authorization.split(' ')[1];
+        const userDir = path.join(__dirname, 'uploads', userToken); // Use user token for unique storage
+        fs.mkdirSync(userDir, { recursive: true });
+        cb(null, userDir);
+    },
+    filename: (req, file, cb) => {
+        cb(null, 'qrcode.png');
+    }
+});
+const upload = multer({ storage });
+
+app.use(express.json());
+app.use(cors({ origin: 'https://thatsbulky.com', credentials: true }));
+app.use(express.static(path.join(__dirname, 'uploads')));
+
+// Middleware for authentication
 const authenticateUser = (req, res, next) => {
     const token = req.headers.authorization && req.headers.authorization.split(' ')[1];
     if (!token) return res.status(403).json({ error: 'Token is required' });
@@ -31,36 +48,8 @@ const authenticateUser = (req, res, next) => {
     });
 };
 
-// Middleware setup
-app.use(express.json());
-app.use(cors({ origin: 'https://thatsbulky.com', credentials: true }));
-
-const PORT = 3001;
-const QR_CODE_PATH = path.join(__dirname, 'uploads'); 
-const envPath = path.join(__dirname, '.env'); 
-
-const updateLoginStatus = (status) => {
-    // Store login status in memory instead of .env file
-    loginStatus = status;
-    console.log(`Login status updated to: ${status}`);
-};
-
-const reloadEnv = () => {
-    dotenv.config({ path: envPath });
-};
-
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, QR_CODE_PATH);
-    },
-    filename: (req, file, cb) => {
-        cb(null, 'qrcode.png');
-    }
-});
-const upload = multer({ storage });
-app.use(express.static(QR_CODE_PATH));
-
-app.post('/api/qr-code', upload.single('qrCode'), (req, res) => {
+// API for QR code generation
+app.post('/api/qr-code', authenticateUser, upload.single('qrCode'), (req, res) => {
     const file = req.file;
 
     if (!file) {
@@ -71,25 +60,10 @@ app.post('/api/qr-code', upload.single('qrCode'), (req, res) => {
     res.status(200).json({ message: 'QR code saved successfully' });
 });
 
-let clientInstance;
-let isReconnecting = false;
-
-const handleReconnection = () => {
-    if (!isReconnecting) {
-        isReconnecting = true;
-        setTimeout(() => {
-            clientInstance = null;
-            getClient();
-            isReconnecting = false;
-        }, 5000);
-    }
-};
-
-const getClient = () => {
-    updateLoginStatus(loginStatus);
-    reloadEnv();
-    if (!clientInstance) {
-        clientInstance = new Client({
+// Create and initialize client instance for user
+const getClient = (token, user) => {
+    if (!clients[token]) {
+        const client = new Client({
             puppeteer: {
                 headless: true,
                 args: [
@@ -101,211 +75,32 @@ const getClient = () => {
             },
         });
 
-        clientInstance.on('qr', async (qr) => {
-            try {
-                await qrcode.toFile(path.join(QR_CODE_PATH, 'qrcode.png'), qr);
-                updateLoginStatus('loggedOut');
-                console.log('QR Code saved to folder');
-            } catch (error) {
-                console.error('Error saving QR code:', error);
-            }
+        client.on('qr', async (qr) => {
+            const userDir = path.join(__dirname, 'uploads', token);
+            await qrcode.toFile(path.join(userDir, 'qrcode.png'), qr);
+            console.log(`QR Code saved for user ${user.username}`);
         });
 
-        clientInstance.on('ready', async () => {
-            try {
-                const qrCodePath = path.join(QR_CODE_PATH, 'qrcode.png');
-                fs.unlink(qrCodePath, (err) => {
-                    if (err) {
-                        console.error('Error deleting QR code image:', err);
-                    } else {
-                        console.log('QR code image deleted successfully.');
-                    }
-                });
-
-                updateLoginStatus('loggedIn');
-                initializeDatabase();
-                saveContactsToDatabase();
-                console.log('User logged in successfully');
-            } catch (error) {
-                console.error('Error during login initialization:', error);
-            }
+        client.on('ready', async () => {
+            console.log(`User ${user.username} logged in successfully`);
+            await saveContactsToDatabase(client, user.db_path); // Pass user-specific DB path
         });
 
-        clientInstance.on('disconnected', async (reason) => {
-            console.log(`Client disconnected: ${reason}`);
-            updateLoginStatus('loggedOut');
-            handleReconnection();
+        client.on('disconnected', (reason) => {
+            console.log(`Client disconnected for user ${user.username}: ${reason}`);
+            delete clients[token]; // Remove client from the map on disconnect
         });
 
-        clientInstance.on('auth_failure', async () => {
-            updateLoginStatus('loggedOut');
-            console.log('Authentication Error');
-        });
-
-        clientInstance.initialize();
+        client.initialize();
+        clients[token] = client;
     }
-    return clientInstance;
+    return clients[token];
 };
 
-// Consolidated endpoint to get the login status
-app.get('/api/status', (req, res) => {
-    try {
-        res.status(200).json({ status: loginStatus });
-    } catch (error) {
-        console.error('Failed to fetch login status:', error);
-        res.status(500).json({ error: 'Failed to fetch login status' });
-    }
-});
-
-
-async function initializeDatabase() {
-    const db = new sqlite3.Database(process.env.DB_PATH || 'contacts.db', (err) => {
-        if (err) {
-            console.error('Error opening database:', err);
-        } else {
-            console.log('Database opened successfully');
-        }
-    });
-
-    return new Promise((resolve, reject) => {
-        db.serialize(() => {
-            // Create the users table for authentication data
-            db.run(`CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT NOT NULL UNIQUE,
-                password TEXT NOT NULL,
-                db_path TEXT NOT NULL
-            )`, (err) => {
-                if (err) {
-                    console.error('Error creating users table:', err);
-                    return reject(err);
-                }
-                console.log('Users table created successfully');
-            });
-
-            // Create the groups table
-            db.run(`CREATE TABLE IF NOT EXISTS groups (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL
-            )`, (err) => {
-                if (err) return reject(err);
-            });
-
-            // Create the contacts table
-            db.run(`CREATE TABLE IF NOT EXISTS contacts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                phone TEXT NOT NULL UNIQUE,
-                custom_name TEXT NULL
-            )`, (err) => {
-                if (err) return reject(err);
-            });
-
-            // Create the group_contacts table
-            db.run(`CREATE TABLE IF NOT EXISTS group_contacts (
-                group_id INTEGER,
-                contact_id INTEGER,
-                FOREIGN KEY(group_id) REFERENCES groups(id),
-                FOREIGN KEY(contact_id) REFERENCES contacts(id),
-                UNIQUE(group_id, contact_id)
-            )`, (err) => {
-                if (err) return reject(err);
-                resolve();
-                console.log('Database initialized successfully');
-            });
-        });
-    });
-}
-
-async function saveContactsToDatabase() {
-    const contacts = await clientInstance.getContacts();
-    const db = new sqlite3.Database(process.env.DB_PATH || 'contacts.db');
-
-    // Use a transaction to batch the operations
-    db.serialize(() => {
-        db.run('BEGIN TRANSACTION');
-
-        contacts.forEach((contact) => {
-            const phoneNumber = contact.id._serialized || contact.id.user; // Get the phone number
-            const contactName = contact.name || 'Unknown'; // Get the contact name, default to 'Unknown'
-
-            const isValidContact = phoneNumber.endsWith('@c.us'); // Check if the phone number ends with @c.us
-
-            if (isValidContact) {
-                const cleanPhoneNumber = phoneNumber.replace(/@c\.us$/, '');
-                const isValidName = contactName && contactName !== 'Unknown'; // Name should not be empty or 'Unknown'
-
-                if (isValidName) {
-                    // Use a prepared statement to check for existence
-                    db.get(`SELECT id FROM contacts WHERE phone = ?`, [cleanPhoneNumber], (err, row) => {
-                        if (err) {
-                            console.error('Error querying the database:', err);
-                        } else if (!row) {
-                            // Contact does not exist, insert it without changing custom_name
-                            db.run(`INSERT INTO contacts (name, phone) VALUES (?, ?)`, 
-                                [contactName, cleanPhoneNumber], 
-                                (err) => {
-                                    if (err) {
-                                        console.error('Error inserting new contact:', err);
-                                    } else {
-                                        console.log(`New contact added: ${contactName} (${cleanPhoneNumber})`);
-                                    }
-                                }
-                            );
-                        }
-                        // No action taken if the contact already exists, so no log here
-                    });
-                }
-                // No log for invalid names or formats, only process valid entries
-            }
-            // No log for invalid contacts, only process valid entries
-        });
-
-        db.run('COMMIT', (err) => {
-            if (err) {
-                console.error('Error committing the transaction:', err);
-            } else {
-                console.log('Transaction committed successfully.');
-            }
-            db.close(); // Close the database after all operations are completed
-        });
-    });
-}
-
-// Function to fetch groups and their contact counts
-async function fetchGroupsWithContactCount() {
-    return new Promise((resolve, reject) => {
-        const db = new sqlite3.Database(process.env.DB_PATH || 'contacts.db');
-
-        // SQL query to get group details along with the number of contacts
-        const query = `
-            SELECT g.id, g.name, COUNT(gc.contact_id) AS contactCount
-            FROM groups g
-            LEFT JOIN group_contacts gc ON g.id = gc.group_id
-            GROUP BY g.id
-        `;
-
-        db.all(query, [], (err, rows) => {
-            db.close(); // Ensure the DB connection is closed
-            if (err) {
-                console.error('Error fetching groups:', err);
-                return reject(new Error('Error fetching groups'));
-            }
-            resolve(rows);
-        });
-    });
-}
-
-// API Endpoints
-app.use(express.json()); // Ensure you can parse JSON bodies
-
-
-
 // User registration endpoint
-app.post('/api/register',async (req, res) => {
+app.post('/api/register', async (req, res) => {
     const { username, password } = req.body;
 
-    // Check if user already exists
     db.get(`SELECT * FROM users WHERE username = ?`, [username], async (err, row) => {
         if (err) {
             console.error('Error checking for existing user:', err);
@@ -315,23 +110,17 @@ app.post('/api/register',async (req, res) => {
             return res.status(409).json({ error: 'User already exists' });
         }
 
-        // Hash the password and create a unique database path for the user
         const hashedPassword = await bcrypt.hash(password, 10);
         const dbPath = `./users/contacts_${username}.db`;
 
-        // Insert new user into the users table
-        db.run(
-            `INSERT INTO users (username, password, db_path) VALUES (?, ?, ?)`,
-            [username, hashedPassword, dbPath],
-            (insertErr) => {
+        db.run(`INSERT INTO users (username, password, db_path) VALUES (?, ?, ?)`,
+            [username, hashedPassword, dbPath], (insertErr) => {
                 if (insertErr) {
                     console.error('Error inserting new user:', insertErr);
                     return res.status(500).json({ error: 'Database error' });
                 }
-                // Initialize individual user database here if needed
                 res.status(201).json({ message: 'User registered successfully' });
-            }
-        );
+            });
     });
 });
 
@@ -339,7 +128,6 @@ app.post('/api/register',async (req, res) => {
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
 
-    // Retrieve user from the database
     db.get(`SELECT * FROM users WHERE username = ?`, [username], async (err, user) => {
         if (err) {
             console.error('Error retrieving user:', err);
@@ -349,17 +137,51 @@ app.post('/api/login', (req, res) => {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        // Compare the provided password with the hashed password
         const isValidPassword = await bcrypt.compare(password, user.password);
         if (!isValidPassword) {
             return res.status(403).json({ error: 'Invalid password' });
         }
 
-        // Generate a JWT token with the username and database path
-        const token = jwt.sign({ username, dbPath: user.db_path }, SECRET_KEY, { expiresIn: '1h' });
+        const token = jwt.sign({ username, db_path: user.db_path }, SECRET_KEY, { expiresIn: '1h' });
+        getClient(token, user); // Initialize client for this user
         res.json({ token, message: 'Login successful' });
     });
 });
+
+// Function to save contacts to user's database
+async function saveContactsToDatabase(client, userDbPath) {
+    const contacts = await client.getContacts();
+    const userDb = new sqlite3.Database(userDbPath);
+
+    userDb.serialize(() => {
+        userDb.run('BEGIN TRANSACTION');
+
+        contacts.forEach((contact) => {
+            const phoneNumber = contact.id._serialized || contact.id.user;
+            const contactName = contact.name || 'Unknown';
+
+            if (phoneNumber.endsWith('@c.us')) {
+                const cleanPhoneNumber = phoneNumber.replace(/@c\.us$/, '');
+                if (contactName && contactName !== 'Unknown') {
+                    userDb.get(`SELECT id FROM contacts WHERE phone = ?`, [cleanPhoneNumber], (err, row) => {
+                        if (!row) {
+                            userDb.run(`INSERT INTO contacts (name, phone) VALUES (?, ?)`, [contactName, cleanPhoneNumber]);
+                        }
+                    });
+                }
+            }
+        });
+
+        userDb.run('COMMIT', (err) => {
+            if (err) {
+                console.error('Error committing the transaction:', err);
+            } else {
+                console.log('Transaction committed successfully for user database.');
+            }
+            userDb.close(); // Close the database after all operations are completed
+        });
+    });
+}
 
 
 app.get('/api/groups-data',authenticateUser, async (req, res) => {
