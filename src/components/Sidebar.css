@@ -1,17 +1,19 @@
 .sidebar {
     background-color: #2C3E50; /* Darker navy for sidebar */
     color: #ECF0F1; /* Light text color */
-    padding: 20px;
+    width: 250px; /* Fixed width for better responsiveness */
+    padding: 2%;
     box-shadow: 2px 0 15px rgba(0, 0, 0, 0.5); /* Enhanced shadow */
     display: flex;
     flex-direction: column;
-    min-width: 250px; /* Fixed width */
     height: 100vh; /* Full height */
-    position: fixed; /* Make it immovable */
+    position: fixed; /* Fixed position */
     left: 0; /* Align to left */
     top: 0; /* Align to top */
     z-index: 1000; /* Ensure it stays above other content */
+    overflow-y: auto; /* Enable vertical scrolling if content exceeds height */
 }
+
 /* Sidebar button styling */
 .sidebar-button {
     background-color: #3498DB; /* Blue color */

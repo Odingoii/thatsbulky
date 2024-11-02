@@ -1,24 +1,42 @@
+/* QRCodeScanner.css */
+
 .qr-code-scanner {
     display: flex;
     flex-direction: column;
-    align-items: center;
     justify-content: center;
+    align-items: center;
     height: 100vh; /* Full viewport height */
-    background-color: #f7f7f7; /* Light background color */
-    font-family: Arial, sans-serif; /* Font styling */
+    background-color: #f0f4ff; /* Light blue background */
+    color: #333; /* Dark text for contrast */
+    text-align: center; /* Center-align text */
 }
 
-h1 {
-    margin-bottom: 20px;
+.title {
+    font-size: 2.5rem; /* Larger font for the title */
+    color: #007BFF; /* Main blue color for the title */
+    margin-bottom: 1rem; /* Space below title */
 }
 
-p {
-    font-size: 18px;
-    margin: 10px 0;
+.status {
+    font-size: 1.2rem; /* Medium size for status message */
+    margin-bottom: 1.5rem; /* Space below status */
+    color: #666; /* Subtle color for status text */
 }
 
-img {
-    margin-top: 20px;
-    border: 2px solid #000; /* Optional border styling */
-    border-radius: 5px; /* Rounded corners */
+.qr-code-image {
+    width: 300px; /* Set a fixed width for the QR code image */
+    height: 300px; /* Set a fixed height for the QR code image */
+    border-radius: 10px; /* Rounded corners */
+    border: 2px solid #007BFF; /* Border matching the theme color */
+    box-shadow: 0 4px 15px rgba(0, 123, 255, 0.5); /* Subtle shadow effect */
+    transition: transform 0.3s ease; /* Smooth scale effect on hover */
+}
+
+.qr-code-image:hover {
+    transform: scale(1.05); /* Scale up the image on hover */
+}
+
+.no-qr-code {
+    font-size: 1rem; /* Smaller size for no QR code message */
+    color: #ff4d4d; /* Red color for error message */
 }

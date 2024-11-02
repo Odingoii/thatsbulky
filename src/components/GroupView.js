@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { useAppContext, ACTIONS } from '../App'; // Import the context and actions
+import { useAppContext } from '../App'; // Import the context
 import './GroupView.css';
 import { fetchGroups } from '../api';  // Import API service function
+import GroupDetail from './GroupDetail'; // Import the GroupDetail component
 
 function GroupView() {
     const [groups, setGroups] = useState([]); // List of groups
     const [loading, setLoading] = useState(true); // Loading state
     const [error, setError] = useState(''); // Error message
+    const [selectedGroupId, setSelectedGroupId] = useState(null); // State for selected group
 
     // Access the app's context state and dispatch function
     const { dispatch } = useAppContext();
@@ -15,8 +17,7 @@ function GroupView() {
     useEffect(() => {
         const loadGroups = async () => {
             try {
-                // Fetch groups from the backend using API service
-                const groupsData = await fetchGroups();
+                const groupsData = await fetchGroups(); // Fetch groups from the backend
                 setGroups(groupsData); // Set the fetched groups into state
             } catch (err) {
                 console.error('Error fetching groups:', err);
@@ -31,9 +32,7 @@ function GroupView() {
 
     // Handle group selection
     const handleGroupSelect = (groupId) => {
-        // Dispatch action to set the active page to 'groupDetail' and pass the selected groupId
-        dispatch({ type: ACTIONS.SET_ACTIVE_PAGE, payload: 'groupDetail' });
-        dispatch({ type: ACTIONS.SET_REDIRECT, payload: groupId }); // Store the groupId for GroupDetail
+        setSelectedGroupId(groupId); // Set selected groupId
     };
 
     return (
@@ -58,7 +57,7 @@ function GroupView() {
                                 {groups.map(group => (
                                     <tr key={group.id} onClick={() => handleGroupSelect(group.id)}>
                                         <td>{group.name}</td>
-                                        <td>{group.contactCount || 0}</td> {/* Display the actual number of contacts */}
+                                        <td>{group.contactCount || 0}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -68,6 +67,9 @@ function GroupView() {
             )}
 
             {error && <p className="error-message">{error}</p>}
+
+            {/* Render the GroupDetail component if a group is selected */}
+            {selectedGroupId && <GroupDetail groupId={selectedGroupId} />}
         </div>
     );
 }

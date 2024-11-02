@@ -8,28 +8,26 @@ import SendMessage from './components/SendMessage';
 import ContactSelection from './components/ContactSelection';
 import LoadingSpinner from './components/LoadingSpinner';
 import GroupDetail from './components/GroupDetail';
-import Signup from './components/Signup';
-import Login from './components/Login';
 import './App.css';
 
+// Create a context for the app
 const AppContext = createContext();
 
+// Action types
 export const ACTIONS = {
     SET_LOGGED_IN: 'SET_LOGGED_IN',
     SET_LOADING: 'SET_LOADING',
     SET_ACTIVE_PAGE: 'SET_ACTIVE_PAGE',
-    SET_REDIRECT: 'SET_REDIRECT',
-    SET_SHOW_LOGIN: 'SET_SHOW_LOGIN',
 };
 
+// Initial state
 const initialState = {
     loggedIn: false,
     loading: true,
     activePage: 'loading',
-    redirectToSendMessage: false,
-    showLogin: true,
 };
 
+// Reducer function to manage state
 function appReducer(state, action) {
     switch (action.type) {
         case ACTIONS.SET_LOGGED_IN:
@@ -38,34 +36,35 @@ function appReducer(state, action) {
             return { ...state, loading: action.payload };
         case ACTIONS.SET_ACTIVE_PAGE:
             return { ...state, activePage: action.payload, loading: false };
-        case ACTIONS.SET_REDIRECT:
-            return { ...state, redirectToSendMessage: action.payload };
-        case ACTIONS.SET_SHOW_LOGIN:
-            return { ...state, showLogin: action.payload };
         default:
             return state;
     }
 }
 
-export const useAppContext = () => useContext(AppContext);
+// Custom hook to use the app context
+export const useAppContext = () => {
+    const context = useContext(AppContext);
+    if (!context) {
+        throw new Error('useAppContext must be used within an AppProvider');
+    }
+    return context;
+}
 
 function App() {
     const [state, dispatch] = useReducer(appReducer, initialState);
 
-    const fetchLoginStatus = async () => {
+    // Function to handle login status
+    const handleLoginStatus = async () => {
         try {
-            const response = await fetchLoginStatusApi(); 
-            const { status } = response.data;
+            const { status } = await fetchLoginStatusApi();
 
             if (!status) {
                 dispatch({ type: ACTIONS.SET_ACTIVE_PAGE, payload: 'loading' });
-            } else {
-                if (status === 'loggedIn') {
-                    dispatch({ type: ACTIONS.SET_LOGGED_IN, payload: true });
-                    dispatch({ type: ACTIONS.SET_ACTIVE_PAGE, payload: 'sendMessage' });
-                } else {
-                    dispatch({ type: ACTIONS.SET_ACTIVE_PAGE, payload: 'qr-code-updated' });
-                }
+            } else if (status === 'loggedOut') {
+                dispatch({ type: ACTIONS.SET_ACTIVE_PAGE, payload: 'qr-code' });
+            } else if (status === 'loggedIn') {
+                dispatch({ type: ACTIONS.SET_LOGGED_IN, payload: true });
+                dispatch({ type: ACTIONS.SET_ACTIVE_PAGE, payload: 'sendMessage' });
             }
         } catch (error) {
             console.error('Error fetching login status:', error);
@@ -74,13 +73,14 @@ function App() {
     };
 
     useEffect(() => {
-        fetchLoginStatus();
-    }, []);
+        handleLoginStatus(); // Initial check on mount
 
-    useEffect(() => {
         const interval = setInterval(() => {
-            if (state.loggedIn) fetchLoginStatus();
-        }, 15000);
+            if (!state.loggedIn) {
+                handleLoginStatus(); // Poll login status if not logged in
+            }
+        }, 15000); // Poll every 15 seconds
+
         return () => clearInterval(interval);
     }, [state.loggedIn]);
 
@@ -89,37 +89,23 @@ function App() {
             <Router>
                 <div className="app-frame">
                     {state.loading && <LoadingSpinner />}
-                    {!state.loggedIn && (
-                        <div className="auth-container">
-                            {state.showLogin ? (
-                                <Login />
-                            ) : (
-                                <Signup onSuccess={() => dispatch({ type: ACTIONS.SET_SHOW_LOGIN, payload: true })} />
-                            )}
-                            <button 
-                                className="auth-toggle-btn" 
-                                onClick={() => dispatch({ type: ACTIONS.SET_SHOW_LOGIN, payload: !state.showLogin })}
-                            >
-                                {state.showLogin ? 'Create an Account' : 'Already have an account? Log in'}
-                            </button>
+                    {state.activePage === 'qr-code' && <QRCodeScanner />}
+
+                    {/* Render sidebar and main content when not loading or showing QR code */}
+                    {!state.loading && state.activePage !== 'qr-code' && (
+                        <div className="main-content">
+                            <Sidebar disabled={state.loading} />
+                            <div className="content-area">
+                                <Routes>
+                                    <Route path="/" element={<SendMessage />} />
+                                    <Route path="/sendMessage" element={<SendMessage />} />
+                                    <Route path="/contacts" element={<ContactSelection />} />
+                                    <Route path="/group" element={<GroupView />} />
+                                    <Route path="/group/:id" element={<GroupDetail />} />
+                                    <Route path="*" element={<Navigate to="/" />} />
+                                </Routes>
+                            </div>
                         </div>
-                    )}
-                    {state.loggedIn && (
-                        <Routes>
-                            <Route path="/" element={<QRCodeScanner />} />
-                            <Route path="/home" element={
-                                <div className={`content-wrapper ${state.loading ? 'blurred' : ''}`}>
-                                    <Sidebar disabled={state.loading} />
-                                    <div className="main-content">
-                                        <SendMessage />
-                                        <GroupView />
-                                        <ContactSelection />
-                                        <GroupDetail groupId={state.redirectToSendMessage} />
-                                    </div>
-                                </div>
-                            } />
-                            <Route path="*" element={<Navigate to="/home" />} />
-                        </Routes>
                     )}
                 </div>
             </Router>

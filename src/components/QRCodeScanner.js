@@ -1,7 +1,8 @@
 // QRCodeScanner.js
 import React, { useState, useEffect } from 'react';
-import LoadingSpinner from './LoadingSpinner1'; // Import your loading spinner
+import LoadingSpinner from './LoadingSpinner'; // Import your loading spinner
 import { fetchQRCode } from '../api'; // Import the fetchQRCode function
+import './QRCodeScanner.css'; // Import the CSS file for styling
 
 function QRCodeScanner({ onLogin }) {
     const [qrCodeImage, setQrCodeImage] = useState(null);
@@ -27,8 +28,8 @@ function QRCodeScanner({ onLogin }) {
         // Load the QR code immediately on component mount
         loadQrCode();
 
-        // Refresh the QR code image every 10 seconds to ensure it's updated
-        const interval = setInterval(loadQrCode, 10000);
+        // Refresh the QR code image every 20 seconds to ensure it's updated
+        const interval = setInterval(loadQrCode, 20000);
 
         // Cleanup on component unmount
         return () => clearInterval(interval); // Clear interval to prevent memory leaks
@@ -36,8 +37,8 @@ function QRCodeScanner({ onLogin }) {
 
     return (
         <div className="qr-code-scanner">
-            <h1>QR Code Scanner</h1>
-            <p>{status}</p>
+            <h1 className="title">QR Code Scanner</h1>
+            <p className="status">{status}</p>
             {loading ? (
                 <LoadingSpinner />
             ) : (
@@ -45,12 +46,11 @@ function QRCodeScanner({ onLogin }) {
                     <img 
                         src={qrCodeImage} 
                         alt="QR Code" 
-                        width="250" 
-                        height="250" 
+                        className="qr-code-image"
                         onError={loadQrCode} // Reload if there's an error loading the image
                     />
                 ) : (
-                    <p>No QR Code available. Please check again.</p>
+                    <p className="no-qr-code">No QR Code available. Please check again.</p>
                 )
             )}
         </div>

@@ -12,24 +12,6 @@ export const fetchLoginStatus = async () => {
         throw error; // Propagate the error for handling in the caller
     }
 };
-export const loginUser = async (username, password) => {
-    try {
-        const response = await axios.post(`${BASE_URL}/api/login`, { username, password });
-        return response.data; // Returns the response data directly
-    } catch (error) {
-        console.error('Error during login:', error);
-        throw error; // Propagate the error for handling in the caller
-    }
-};
-export const registerUser = async (username, password) => {
-    try {
-        const response = await axios.post(`${BASE_URL}/api/register`, { username, password });
-        return response.data; // Returns the response data directly
-    } catch (error) {
-        console.error('Error during registration:', error);
-        throw error; // Propagate the error for handling in the caller
-    }
-};
 
 // Fetch all contacts from the backend
 export const fetchContacts = async () => {
@@ -190,7 +172,7 @@ export const sendMessageToGroup = async (groupId, messages) => {
 export const fetchQRCode = async () => {
     try {
         const timestamp = new Date().getTime();
-        const imagePath = `${BASE_URL}/qrcode.png?q=${timestamp}`; // QR code from storage
+        const imagePath = `${BASE_URL}/api/qrcode?q=${timestamp}`; // QR code from storage
         const response = await axios.get(imagePath, { responseType: 'blob' });
         
         return URL.createObjectURL(response.data); // Create a local URL for the blob

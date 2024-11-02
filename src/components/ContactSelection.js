@@ -13,12 +13,17 @@ function ContactSelection() {
     const [searchQuery, setSearchQuery] = useState(''); // Search query for filtering contacts
     const [existingGroups, setExistingGroups] = useState([]); // List of existing groups for name validation
 
+    console.log('Dispatch function:', dispatch);
+
     // Fetch contacts and existing groups on component mount
     useEffect(() => {
         const fetchContactsAndGroups = async () => {
             try {
                 const contactsData = await fetchContacts();
                 const groupsData = await fetchGroups();
+
+                // Sort contacts alphabetically by name
+                contactsData.sort((a, b) => a.name.localeCompare(b.name));
 
                 setContacts(contactsData);
                 setExistingGroups(groupsData.map(group => group.name.toLowerCase())); // Store group names in lowercase

@@ -1,12 +1,12 @@
 import React from 'react';
-import { useAppContext } from '../App'; // Adjust the import according to your file structure
+import { useNavigate } from 'react-router-dom'; // Import useNavigate
 import './Sidebar.css'; // Import the CSS file for styling
 
-function Sidebar({ disabled }) { // Accepting the disabled prop
-    const { dispatch } = useAppContext(); // Get dispatch function from context
+function Sidebar({ disabled }) {
+    const navigate = useNavigate(); // Initialize navigate
 
-    const handlePageChange = (page) => {
-        dispatch({ type: 'SET_ACTIVE_PAGE', payload: page }); // Dispatch action to set active page
+    const handlePageChange = (path) => {
+        navigate(path); // Use navigate to go to the new path
     };
 
     return (
@@ -14,24 +14,24 @@ function Sidebar({ disabled }) { // Accepting the disabled prop
             <h2 className="sidebar-title">Menu</h2>
             <button 
                 className="sidebar-button" 
-                onClick={() => handlePageChange('createGroup')} 
-                disabled={disabled} // Disable the button if loading
-            >
-                Create Group
-            </button>
-            <button 
-                className="sidebar-button" 
-                onClick={() => handlePageChange('sendMessage')} 
-                disabled={disabled} // Disable the button if loading
-            >
-                Send Message
-            </button>
-            <button 
-                className="sidebar-button" 
-                onClick={() => handlePageChange('groups')} 
+                onClick={() => handlePageChange('/group')} 
                 disabled={disabled} // Disable the button if loading
             >
                 View Groups
+            </button>
+            <button 
+                className="sidebar-button" 
+                onClick={() => handlePageChange('/contacts')} 
+                disabled={disabled} // Disable the button if loading
+            >
+                Contact Selection
+            </button>
+            <button 
+                className="sidebar-button" 
+                onClick={() => handlePageChange('/sendMessage')} 
+                disabled={disabled} // Disable the button if loading
+            >
+                Send Message
             </button>
         </div>
     );

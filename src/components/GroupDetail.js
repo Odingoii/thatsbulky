@@ -9,9 +9,8 @@ import {
     removeContactFromGroup
 } from '../api';  // Import API service functions
 
-function GroupDetail() {
-    const { state, dispatch } = useAppContext();
-    const groupId = state.redirectToSendMessage;
+function GroupDetail({ groupId }) { // Accept groupId as a prop
+    const { dispatch } = useAppContext();
     const [group, setGroup] = useState(null);
     const [contacts, setContacts] = useState([]);
     const [allContacts, setAllContacts] = useState([]);
