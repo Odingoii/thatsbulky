@@ -1,6 +1,6 @@
 // Signup.js
 import React, { useState } from 'react';
-import axios from 'axios';
+import { registerUser } from '../api'; // Import the API call from api.js
 import './Auth.css';
 
 function Signup() {
@@ -11,8 +11,8 @@ function Signup() {
     const handleSignup = async (e) => {
         e.preventDefault();
         try {
-            const response = await axios.post('/api/register', { username, password });
-            setMessage(response.data.message || 'Sign up successful');
+            const response = await registerUser(username, password); // Use the API function
+            setMessage(response.message || 'Sign up successful');
         } catch (error) {
             setMessage(error.response?.data?.error || 'Sign up failed');
         }
