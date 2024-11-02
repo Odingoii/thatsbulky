@@ -1,6 +1,6 @@
 import React, { useReducer, useEffect, useContext, createContext } from 'react';
-import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom'; // Updated imports
-import { fetchLoginStatus as fetchLoginStatusApi } from './api'; // Ensure this imports your actual API function
+import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
+import { fetchLoginStatus as fetchLoginStatusApi } from './api'; 
 import QRCodeScanner from './components/QRCodeScanner';
 import Sidebar from './components/Sidebar';
 import GroupView from './components/GroupView';
@@ -12,10 +12,8 @@ import Signup from './components/Signup';
 import Login from './components/Login';
 import './App.css';
 
-// Create a context for the app state
 const AppContext = createContext();
 
-// Action types for the reducer
 export const ACTIONS = {
     SET_LOGGED_IN: 'SET_LOGGED_IN',
     SET_LOADING: 'SET_LOADING',
@@ -24,16 +22,14 @@ export const ACTIONS = {
     SET_SHOW_LOGIN: 'SET_SHOW_LOGIN',
 };
 
-// Initial state for the reducer
 const initialState = {
     loggedIn: false,
     loading: true,
     activePage: 'loading',
     redirectToSendMessage: false,
-    showLogin: true, // Controls whether to show login or signup
+    showLogin: true,
 };
 
-// Reducer function to manage state transitions
 function appReducer(state, action) {
     switch (action.type) {
         case ACTIONS.SET_LOGGED_IN:
@@ -51,33 +47,24 @@ function appReducer(state, action) {
     }
 }
 
-// Custom hook to use the AppContext
 export const useAppContext = () => useContext(AppContext);
 
 function App() {
     const [state, dispatch] = useReducer(appReducer, initialState);
 
-    // Function to fetch login status and update app state
     const fetchLoginStatus = async () => {
         try {
-            const response = await fetchLoginStatusApi(); // Call your API here
-            const { status } = response.data; // Adjust based on your API response structure
+            const response = await fetchLoginStatusApi(); 
+            const { status } = response.data;
 
             if (!status) {
                 dispatch({ type: ACTIONS.SET_ACTIVE_PAGE, payload: 'loading' });
             } else {
-                switch (status) {
-                    case 'loggedOut':
-                        dispatch({ type: ACTIONS.SET_ACTIVE_PAGE, payload: 'qr-code-updated' });
-                        break;
-                    case 'loggedIn':
-                        dispatch({ type: ACTIONS.SET_ACTIVE_PAGE, payload: 'sendMessage' });
-                        dispatch({ type: ACTIONS.SET_LOGGED_IN, payload: true });
-                        dispatch({ type: ACTIONS.SET_LOADING, payload: false });
-                        break;
-                    default:
-                        dispatch({ type: ACTIONS.SET_ACTIVE_PAGE, payload: 'loading' });
-                        dispatch({ type: ACTIONS.SET_LOGGED_IN, payload: false });
+                if (status === 'loggedIn') {
+                    dispatch({ type: ACTIONS.SET_LOGGED_IN, payload: true });
+                    dispatch({ type: ACTIONS.SET_ACTIVE_PAGE, payload: 'sendMessage' });
+                } else {
+                    dispatch({ type: ACTIONS.SET_ACTIVE_PAGE, payload: 'qr-code-updated' });
                 }
             }
         } catch (error) {
@@ -87,14 +74,14 @@ function App() {
     };
 
     useEffect(() => {
-        const pollLoginStatus = () => {
-            fetchLoginStatus();
-        };
+        fetchLoginStatus();
+    }, []);
 
-        if (!state.loggedIn) {
-            const interval = setInterval(pollLoginStatus, 15000);
-            return () => clearInterval(interval);
-        }
+    useEffect(() => {
+        const interval = setInterval(() => {
+            if (state.loggedIn) fetchLoginStatus();
+        }, 15000);
+        return () => clearInterval(interval);
     }, [state.loggedIn]);
 
     return (
@@ -102,14 +89,12 @@ function App() {
             <Router>
                 <div className="app-frame">
                     {state.loading && <LoadingSpinner />}
-
-                    {/* Show Signup or Login if user is not logged in */}
                     {!state.loggedIn && (
                         <div className="auth-container">
                             {state.showLogin ? (
                                 <Login />
                             ) : (
-                                <Signup />
+                                <Signup onSuccess={() => dispatch({ type: ACTIONS.SET_SHOW_LOGIN, payload: true })} />
                             )}
                             <button 
                                 className="auth-toggle-btn" 
@@ -119,25 +104,21 @@ function App() {
                             </button>
                         </div>
                     )}
-
-                    {/* Main App Content with Routing */}
                     {state.loggedIn && (
                         <Routes>
                             <Route path="/" element={<QRCodeScanner />} />
                             <Route path="/home" element={
-                                <>
-                                    <div className={`content-wrapper ${state.loading ? 'blurred' : ''}`}>
-                                        <Sidebar disabled={state.loading} />
-                                        <div className="main-content">
-                                            <SendMessage />
-                                            <GroupView />
-                                            <ContactSelection />
-                                            <GroupDetail groupId={state.redirectToSendMessage} />
-                                        </div>
+                                <div className={`content-wrapper ${state.loading ? 'blurred' : ''}`}>
+                                    <Sidebar disabled={state.loading} />
+                                    <div className="main-content">
+                                        <SendMessage />
+                                        <GroupView />
+                                        <ContactSelection />
+                                        <GroupDetail groupId={state.redirectToSendMessage} />
                                     </div>
-                                </>
+                                </div>
                             } />
-                            <Route path="*" element={<Navigate to="/home" />} /> {/* Redirect to home if no match */}
+                            <Route path="*" element={<Navigate to="/home" />} />
                         </Routes>
                     )}
                 </div>
