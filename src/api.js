@@ -12,6 +12,15 @@ export const fetchLoginStatus = async () => {
         throw error; // Propagate the error for handling in the caller
     }
 };
+export const loginUser = async (username, password) => {
+    try {
+        const response = await axios.post(`${BASE_URL}/api/login`, { username, password });
+        return response.data; // Returns the response data directly
+    } catch (error) {
+        console.error('Error during login:', error);
+        throw error; // Propagate the error for handling in the caller
+    }
+};
 export const registerUser = async (username, password) => {
     try {
         const response = await axios.post(`${BASE_URL}/api/register`, { username, password });
